@@ -13,6 +13,7 @@ import {
 	specifiedRegister,
 	authValidates,
 	authLogin,
+	authCheckRefreshToken,
 } from '../controllers/authControllers.js';
 import {
 	passwordCompare,
@@ -36,7 +37,7 @@ authRouter.route('/google/success').get(isLoggedIn, authLoginSuccess);
 
 authRouter.route('/google/failure').get(authLoginFailure);
 
-authRouter.route('/logout').get(authLogout);
+authRouter.route('/logout').post(authLogout);
 
 authRouter.route('/request_OTP').get(authRequestOTP);
 
@@ -45,6 +46,9 @@ authRouter.route('/verify_OTP').post(authOTPVerify, authOTPSuccess);
 authRouter.route('/register').post(passwordHash, authRegister);
 
 authRouter.route('/login').post(authValidates, passwordCompare, authLogin);
+
+authRouter.route('/token').post(authCheckRefreshToken);
+
 //TODO: have to create session login
 
 authRouter

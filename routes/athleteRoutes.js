@@ -29,7 +29,7 @@ const athleteRouter = Router();
 
 athleteRouter
 	.route('/home')
-	.get(
+	.post(
 		protect,
 		athleteCheck,
 		athleteFeaturedTrainer,
@@ -40,7 +40,7 @@ athleteRouter
 
 athleteRouter
 	.route('/search_trainer')
-	.get(protect, athleteCheck, athleteFilterTrainer);
+	.post(protect, athleteCheck, athleteFilterTrainer);
 
 //TODO have to include facility filter
 
@@ -78,6 +78,6 @@ athleteRouter
 
 athleteRouter
 	.route('/suggested_facilities')
-	.get(protect, athleteCheck, facilitySuggestions);
+	.post(protect, athleteCheck, facilitySuggestions);
 
 export { athleteRouter };

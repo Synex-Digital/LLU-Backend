@@ -8,6 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const uploadDir = path.join(__dirname, '..', 'pictures');
 
+//TODO have to fix this before production
 // if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 const storage = multer.diskStorage({
@@ -43,4 +44,23 @@ const uploadFile = expressAsyncHandler(async (req, res, next) => {
 	});
 });
 
-export { uploadFile, uploadDir };
+const uploadMultiple = expressAsyncHandler(async (req, res, next) => {
+	upload.array('img', 10)(req, res, function (err) {
+		if (err instanceof multer.MulterError) {
+			throw new Error(`message: ${err.message}`);
+		} else if (err) {
+			throw new Error(`message: ${err.message}`);
+		}
+		const fileRoutes = req.files.map((file) => {
+			const fileRoute = path
+				.join('pictures', file.filename)
+				.replace(/\\/g, '/');
+			return `${req.protocol}://${req.get('host')}/${fileRoute}`;
+		});
+
+		req.filePaths = fileRoutes;
+		next();
+	});
+});
+
+export { uploadFile, uploadDir, uploadMultiple };

@@ -42,7 +42,7 @@ const trainerStatistics = expressAsyncHandler(async (req, res, next) => {
 			t.no_of_students,
 			TIMESTAMPDIFF(YEAR, ex.start_date, ex.end_date) AS years_of_experience,
 			AVG(tr.rating) AS avg_rating,
-			COUNT(tr.review_trainer_id) as no_of_reviews
+			COUNT(DISTINCT tr.review_trainer_id) as no_of_reviews
 		FROM
 			trainers t
 		RIGHT JOIN
@@ -96,7 +96,7 @@ const trainerReviews = expressAsyncHandler(async (req, res) => {
 			rt.rating,
 			rt.time,
 			rt.content,
-			GROUP_CONCAT(rti.img ORDER BY rti.img SEPARATOR ',') AS review_images
+			GROUP_CONCAT(DISTINCT rti.img ORDER BY rti.img SEPARATOR ',') AS review_images
 		FROM 
 			users u
 		JOIN 

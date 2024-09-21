@@ -10,6 +10,8 @@ import { mailerMiddleware } from './middleware/mailerMiddleware.js';
 import { athleteRouter } from './routes/athleteRoutes.js';
 import { facilitatorRouter } from './routes/facilitatorRoutes.js';
 import { uploadDir } from './middleware/uploadMiddleware.js';
+import { userRouter } from './routes/userRoutes.js';
+import { socketInitialize } from './realtime/socket.js';
 
 dotenv.config();
 const app = express();
@@ -24,12 +26,13 @@ app.use(passport.initialize());
 app.use(passport.session());
 app.use(cors());
 app.use(express.json());
-app.use('/images', express.static(uploadDir));
+app.use('/pictures', express.static(uploadDir));
 app.use(mailerMiddleware);
 
 app.use('/auth', authRouter);
 app.use('/api/athlete', athleteRouter);
 app.use('/api/facilitator', facilitatorRouter);
+app.use('/api/user', userRouter);
 
 //! remove after testing
 app.get('/', (req, res) => {
@@ -56,6 +59,4 @@ const io = new Server(server, {
 	},
 });
 
-io.on('connection', (socket) => {
-	console.log('Connected to socket.io', socket.id);
-});
+io.on('connection', socketInitialize);

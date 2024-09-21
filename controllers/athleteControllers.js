@@ -4,6 +4,12 @@ import { pool } from '../config/db.js';
 const athleteFeaturedTrainer = expressAsyncHandler(async (req, res, next) => {
 	let { page, limit } = req.query;
 	const { latitude, longitude } = req.body;
+	if (!latitude || !longitude) {
+		res.status(400).json({
+			message: 'Latitude or longitude is missing',
+		});
+		return;
+	}
 	page = parseInt(page) || 1;
 	limit = parseInt(limit) || 10;
 	const offset = (page - 1) * limit;
@@ -188,13 +194,13 @@ const athleteFilterTrainer = expressAsyncHandler(async (req, res) => {
 				SELECT
 					rt.trainer_id,
 					AVG(rt.rating) AS avg_rating,
-					COUNT(rt.review_trainer_id) AS no_of_ratings
+					COUNT(DISTINCT rt.review_trainer_id) AS no_of_ratings
 				FROM
 					review_trainer rt
 				GROUP BY
 					rt.trainer_id
 				HAVING
-					COUNT(rt.review_trainer_id) > 0
+					COUNT(DISTINCT rt.review_trainer_id) > 0
 			) r ON t.trainer_id = r.trainer_id
 		LEFT JOIN
 			trainer_availability_hours tah ON t.trainer_id = tah.trainer_id

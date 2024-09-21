@@ -3,7 +3,7 @@ import expressAsyncHandler from 'express-async-handler';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth2';
 import passport from 'passport';
 import dotenv from 'dotenv';
-import { pool } from '../config/db.js';
+import { verifyToken } from '../utilities/verifyToken.js';
 
 dotenv.config();
 passport.use(
@@ -47,18 +47,7 @@ const protect = expressAsyncHandler(async (req, res, next) => {
 	) {
 		try {
 			token = req.headers.authorization.split(' ')[1];
-			const decoded = jwt.verify(token, process.env.JWT_SECRET);
-			const [[user]] = await pool.query(
-				`SELECT * FROM users WHERE user_id = ?`,
-				[decoded.id]
-			);
-			if (!user) {
-				res.status(400).json({
-					message: 'There is no user with this token credentials',
-				});
-				return;
-			}
-			req.user = user;
+			req.user = await verifyToken(token);
 			next();
 		} catch (error) {
 			throw new Error('Failed to authorize token');

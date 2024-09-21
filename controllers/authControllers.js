@@ -1,17 +1,27 @@
 import expressAsyncHandler from 'express-async-handler';
 import { pool } from '../config/db.js';
-import { generateToken } from '../utilities/generateToken.js';
+import jwt from 'jsonwebtoken';
+import {
+	generateAccessToken,
+	generateRefreshToken,
+} from '../utilities/generateToken.js';
 import { generateOTP } from '../utilities/generateOTP.js';
 
-const authLogout = expressAsyncHandler((req, res) => {
-	req.logout((err) => {
-		if (err) throw new Error('Error logging out');
-		req.session.destroy((err) => {
-			if (err) throw new Error('Error destroying session');
-			res.status(205).json({
-				message: 'user successfully logged out',
-			});
+const authLogout = expressAsyncHandler(async (req, res) => {
+	const { token } = req.body;
+	if (!token) {
+		res.status(400).json({
+			message: 'Token is missing',
 		});
+		return;
+	}
+	const [{ affectedRows }] = await pool.query(
+		`DELETE FROM token_management WHERE token = ?`,
+		[token]
+	);
+	if (affectedRows === 0) throw new Error('Failed to log out');
+	res.status(200).json({
+		message: 'Successfully logged out',
 	});
 });
 
@@ -33,7 +43,8 @@ const authLoginSuccess = expressAsyncHandler(async (req, res) => {
 		res.status(200).json({
 			loginStatus: true,
 			user: filteredUser,
-			token: generateToken(user_id),
+			accessToken: generateAccessToken(user_id),
+			refreshToken: await generateRefreshToken(user_id),
 		});
 		return;
 	}
@@ -74,20 +85,16 @@ const authRequestOTP = expressAsyncHandler(async (req, res, next) => {
 		[email, otp, expire_in]
 	);
 	if (affectedRows === 0) throw new Error('Failed to invoke forgot password');
-	try {
-		await req.mailer.sendMail({
-			from: 'shihab.cse.20210104156@aust.edu',
-			to: email,
-			subject: 'Your OTP for password reset',
-			text: `Your OTP is ${otp}. It expires in 30 minutes`,
-		});
-		req.user_id = user.user_id; //* check if it works
-		res.status(200).json({
-			message: 'OTP sent successfully',
-		});
-	} catch (error) {
-		next(error);
-	}
+	await req.mailer.sendMail({
+		from: 'shihab.cse.20210104156@aust.edu',
+		to: email,
+		subject: 'Your OTP for password reset',
+		text: `Your OTP is ${otp}. It expires in 30 minutes`,
+	});
+	req.user_id = user.user_id;
+	res.status(200).json({
+		message: 'OTP sent successfully',
+	});
 });
 
 const authOTPVerify = expressAsyncHandler(async (req, res, next) => {
@@ -325,6 +332,8 @@ const parentRegister = async (req, res, user_id) => {
 				sport_level,
 			]
 		);
+		if (childInsertStatus.affectedRows === 0)
+			throw new Error('Failed to add child');
 	});
 	res.status(201).json({
 		message: 'Specialized user with children created successfully',
@@ -392,7 +401,33 @@ const authLogin = expressAsyncHandler(async (req, res) => {
 	res.status(verified ? 200 : 403).json({
 		loginStatus: verified,
 		user: verified ? filteredUser : null,
-		token: verified ? generateToken(user_id) : null,
+		accessToken: verified ? generateAccessToken(user_id) : null,
+		refreshToken: verified ? await generateRefreshToken(user_id) : null,
+	});
+});
+
+const authCheckRefreshToken = expressAsyncHandler(async (req, res) => {
+	const { token } = req.body;
+	if (!token) {
+		res.status(200).json({
+			message: 'Token is missing',
+		});
+		return;
+	}
+	const [[available]] = await pool.query(
+		`SELECT * FROM token_management WHERE token = ?`,
+		[token]
+	);
+	if (!available) {
+		res.status(403).json({
+			message: 'Invalid refresh token',
+		});
+		return;
+	}
+	const decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
+	const accessToken = generateAccessToken(decoded.id);
+	res.status(200).json({
+		accessToken,
 	});
 });
 
@@ -408,4 +443,5 @@ export {
 	specifiedRegister,
 	authValidates,
 	authLogin,
+	authCheckRefreshToken,
 };
