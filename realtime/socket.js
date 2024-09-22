@@ -31,7 +31,7 @@ const socketInitialize = (socket) => {
 		}
 		console.log('connected');
 	});
-	socket.off('connect_user', async (data) => {
+	socket.on('disconnect_user', async (data) => {
 		if (!data.token) {
 			socket.emit('validation', {
 				message: 'Token is missing',
@@ -108,7 +108,6 @@ const socketInitialize = (socket) => {
 			});
 			return;
 		}
-		//TODO have to handle if user is not online and DB
 		if (!data.token) {
 			socket.emit('validation', {
 				message: 'Token is missing',
@@ -116,8 +115,34 @@ const socketInitialize = (socket) => {
 			return;
 		}
 		const user = await verifyToken(data.token);
+		if (!user) {
+			socket.emit('validation', {
+				message: 'Invalid token',
+			});
+			return;
+		}
+		const [{ insertId, affectedRows }] = await pool.query(
+			`INSERT INTO messages (chat_id, content, time) VALUES (?, ?, ?)`,
+			[data.chat_id, data.content, data.time]
+		);
+		if (affectedRows === 0) {
+			socket.emit('validation', {
+				message: 'Failed to send message',
+			});
+			return;
+		}
 		if (user.socket_id) {
 			socket.in(data.room_id).emit('receive_message', data.message);
+			return;
+		}
+		const [insertStatus] = await pool.query(
+			`INSERT INTO unseen_messages (message_id, user_id) VALUES (?, ?)`,
+			[insertId, data.user_id]
+		);
+		if (insertStatus.affectedRows === 0) {
+			socket.emit('validation', {
+				message: 'Failed to send message and user is offline',
+			});
 			return;
 		}
 	});

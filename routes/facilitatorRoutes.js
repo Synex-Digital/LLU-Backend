@@ -28,7 +28,7 @@ import {
 	facilitySessionTrainer,
 } from '../controllers/facilitatorControllers.js';
 import { protect } from '../middleware/authMiddleware.js';
-import { uploadFile } from '../middleware/uploadMiddleware.js';
+import { uploadMultiple } from '../middleware/uploadMiddleware.js';
 import { athleteFeaturedTrainer } from '../controllers/athleteControllers.js';
 
 const facilitatorRouter = Router();
@@ -123,10 +123,25 @@ facilitatorRouter
 
 facilitatorRouter
 	.route('/:facility_id/add_img')
-	.post(protect, facilitatorCheck, uploadFile, facilitatorFacilityImage);
+	.post(protect, facilitatorCheck, uploadMultiple, facilitatorFacilityImage);
 
 facilitatorRouter
 	.route('/:facility_id/add_review')
 	.post(protect, facilityReviewerCheck, facilityReview);
+
+//TODO create facility edit image route
+//TODO have to give facilitator_id
+//TODO merge facility amenities and employee assign
+//TODO have to create route for ongoing, upcoming and history see all
+//TODO have to count no of pages in pagination
+//TODO have to create notification route
+//TODO single facility image delete and fetch previous
+//TODO direction to athlete
+//TODO change email
+//TODO like and unlike
+//TODO can comment
+//TODO community profile other individual
+//TODO user follow other
+//TODO search
 
 export { facilitatorRouter };

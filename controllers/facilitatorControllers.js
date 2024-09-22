@@ -69,16 +69,21 @@ const facilitatorAddFacility = expressAsyncHandler(async (req, res) => {
 
 const facilitatorFacilityImage = expressAsyncHandler(async (req, res) => {
 	const { facility_id } = req.params;
+	const { filePaths } = req;
 	if (!facility_id) {
 		res.status(400).json({
 			message: 'facility id is missing in the url',
 		});
 		return;
 	}
-	const [{ affectedRows }] = await pool.query(
-		`INSERT INTO facility_img (facility_id, img) VALUES (?, ?)`,
-		[facility_id, req.filePath]
-	);
+	for (const path of filePaths) {
+		const [{ affectedRows }] = await pool.query(
+			`INSERT INTO facility_img (facility_id, img) VALUES (?, ?)`,
+			[facility_id, path]
+		);
+		if (affectedRows === 0)
+			throw new Error('Failed to upload facility image');
+	}
 	if (affectedRows === 0)
 		throw new Error('Failed to upload image into facility');
 	res.status(201).json({
