@@ -232,16 +232,17 @@ const trainerRegister = async (req, res, user_id) => {
 	);
 	if (trainer)
 		await pool.query(`DELETE FROM trainers WHERE user_id = ?`, [user_id]);
-	const { hourly_rate, specialization, specialization_level } = req.body;
-	if (!hourly_rate || !specialization || !specialization_level) {
+	const { hourly_rate, specialization, specialization_level, gender } =
+		req.body;
+	if (!hourly_rate || !specialization || !specialization_level || !gender) {
 		res.status(400).json({
 			message: 'Missing attributes',
 		});
 		return;
 	}
 	const [insertStatus] = await pool.query(
-		`INSERT INTO trainers (user_id, hourly_rate, specialization, specialization_level) VALUES (?, ?, ?, ?)`,
-		[user_id, hourly_rate, specialization, specialization_level]
+		`INSERT INTO trainers (user_id, hourly_rate, specialization, specialization_level, gender) VALUES (?, ?, ?, ?, ?)`,
+		[user_id, hourly_rate, specialization, specialization_level, gender]
 	);
 	if (insertStatus.affectedRows === 0)
 		throw new Error('Specialized user creation failed');
