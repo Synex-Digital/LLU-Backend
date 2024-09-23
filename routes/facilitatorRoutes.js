@@ -130,6 +130,8 @@ facilitatorRouter
 	.route('/delete_img/:facility_img_id')
 	.delete(protect, facilitatorCheck, facilitatorDeleteFacilityImage);
 
+//TODO populate all database
+//TODO have to make sure if something is not created nothing is created in facility add
 //TODO create facility edit image route
 //TODO have to create route for ongoing, upcoming and history see all
 //TODO have to count no of pages in pagination

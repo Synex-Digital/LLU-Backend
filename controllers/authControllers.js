@@ -240,7 +240,7 @@ const trainerRegister = async (req, res, user_id) => {
 		return;
 	}
 	const [insertStatus] = await pool.query(
-		`INSERT INTO trainers (user_id, hourly_rate, specialization, specialization_level) VALUES (?, ?)`,
+		`INSERT INTO trainers (user_id, hourly_rate, specialization, specialization_level) VALUES (?, ?, ?, ?)`,
 		[user_id, hourly_rate, specialization, specialization_level]
 	);
 	if (insertStatus.affectedRows === 0)
@@ -382,7 +382,7 @@ const specifiedRegister = expressAsyncHandler(async (req, res) => {
 const authValidates = expressAsyncHandler(async (req, res, next) => {
 	const { email } = req.body;
 	const [[user]] = await pool.query(
-		`SELECT user_id, first_name, last_name, profile_picture, img, email, password FROM users WHERE email = ?`,
+		`SELECT user_id, type, first_name, last_name, profile_picture, img, email, password FROM users WHERE email = ?`,
 		[email]
 	);
 	if (!user) {
