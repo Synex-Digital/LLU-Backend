@@ -23,7 +23,7 @@ const facilityReviewerCheck = expressAsyncHandler((req, res, next) => {
 	});
 });
 
-const facilitatorAddFacility = expressAsyncHandler(async (req, res) => {
+const facilitatorAddFacility = expressAsyncHandler(async (req, res, next) => {
 	const {
 		hourly_rate,
 		name,
@@ -61,10 +61,8 @@ const facilitatorAddFacility = expressAsyncHandler(async (req, res) => {
 		if (insertStatus.affectedRows === 0)
 			throw new Error('Failed to insert available hours');
 	}
-	res.status(201).json({
-		facility_id: insertId,
-		message: 'Facility added successfully',
-	});
+	req.facility_id = insertId;
+	next();
 });
 
 const facilitatorFacilityImage = expressAsyncHandler(async (req, res) => {
@@ -100,7 +98,7 @@ const facilitatorAddAmenities = expressAsyncHandler(async (req, res) => {
 		});
 		return;
 	}
-	const { facility_id } = req.params;
+	const { facility_id } = req;
 	if (!facility_id) {
 		res.status(400).json({
 			message: 'facility id is missing in the url',
@@ -122,7 +120,8 @@ const facilitatorAddAmenities = expressAsyncHandler(async (req, res) => {
 		if (affectedRows === 0) throw new Error('Failed to insert amenity');
 	}
 	res.status(200).json({
-		message: 'Successfully inserted amenities',
+		facility_id,
+		message: 'Successfully added facility',
 	});
 });
 
@@ -867,33 +866,50 @@ const facilitatorEmployees = expressAsyncHandler(async (req, res) => {
 	});
 });
 
-//TODO reduce request by middleware get insertId and use it to insert others
 //TODO have to ensure that every params has respective data in table
-const facilitatorAssignEmployee = expressAsyncHandler(async (req, res) => {
-	const { facility_id } = req.params;
-	if (!facility_id) {
+const facilitatorAssignEmployee = expressAsyncHandler(
+	async (req, res, next) => {
+		const { facility_id } = req;
+		if (!facility_id) {
+			res.status(400).json({
+				message: 'Facility id is missing in the url',
+			});
+			return;
+		}
+		const { employees } = req.body;
+		if (!Array.isArray(employees)) {
+			res.status(400).json({
+				message: 'Employee is of wrong type',
+			});
+			return;
+		}
+		//TODO have to ensure that the sent employees are present in facilitator_employees
+		for (const employee_id of employees) {
+			const [{ affectedRows }] = await pool.query(
+				`INSERT INTO facility_employees (facility_id, trainer_id) VALUES (?, ?)`,
+				[facility_id, employee_id]
+			);
+			if (affectedRows === 0) throw new Error('Failed to add employees');
+		}
+		next();
+	}
+);
+
+const facilitatorDeleteFacilityImage = expressAsyncHandler(async (req, res) => {
+	const { facility_img_id } = req.params;
+	if (!facility_img_id) {
 		res.status(400).json({
-			message: 'Facility id is missing in the url',
+			message: 'Facility img id is missing in the url',
 		});
 		return;
 	}
-	const { employees } = req.body;
-	if (!Array.isArray(employees)) {
-		res.status(400).json({
-			message: 'Employee is of wrong type',
-		});
-		return;
-	}
-	//TODO have to ensure that the sent employees are present in facilitator_employees
-	for (const employee_id of employees) {
-		const [{ affectedRows }] = await pool.query(
-			`INSERT INTO facility_employees (facility_id, trainer_id) VALUES (?, ?)`,
-			[facility_id, employee_id]
-		);
-		if (affectedRows === 0) throw new Error('Failed to add employees');
-	}
+	const [{ affectedRows }] = await pool.query(
+		`DELETE FROM facility_img WHERE facility_img_id = ?`,
+		[facility_img_id]
+	);
+	if (affectedRows === 0) throw new Error('Failed to delete facility image');
 	res.status(200).json({
-		message: 'Successfully added employees',
+		message: 'Successfully deleted facility image',
 	});
 });
 
@@ -925,4 +941,5 @@ export {
 	facilitatorAddEmployee,
 	facilitatorEmployees,
 	facilitatorAssignEmployee,
+	facilitatorDeleteFacilityImage,
 };

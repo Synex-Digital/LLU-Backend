@@ -395,14 +395,45 @@ const authValidates = expressAsyncHandler(async (req, res, next) => {
 	next();
 });
 
+const authGetSpecializedUser = async (user_id) => {
+	const [[facilitator]] = await pool.query(
+		`SELECT facilitator_id FROM facilitators WHERE user_id = ?`,
+		[user_id]
+	);
+	if (facilitator?.facilitator_id) return facilitator.facilitator_id;
+	const [[trainer]] = await pool.query(
+		`SELECT trainer_id FROM trainers WHERE user_id = ?`,
+		[user_id]
+	);
+	if (trainer?.trainer_id) return trainer.trainer_id;
+	const [[athlete]] = await pool.query(
+		`SELECT athlete_id FROM athletes WHERE user_id = ?`,
+		[user_id]
+	);
+	if (athlete?.athlete_id) return athlete.athlete_id;
+	const [[parent]] = await pool.query(
+		`SELECT parent_id FROM parents WHERE user_id = ?`,
+		[user_id]
+	);
+	if (parent?.parent_id) return parent.parent_id;
+	return null;
+};
+
 const authLogin = expressAsyncHandler(async (req, res) => {
 	const { verified, user } = req;
-	const { user_id, password, ...filteredUser } = user;
+	const { password, ...filteredUser } = user;
 	res.status(verified ? 200 : 403).json({
 		loginStatus: verified,
+		specializedUserId: verified
+			? await authGetSpecializedUser(filteredUser.user_id)
+			: null,
 		user: verified ? filteredUser : null,
-		accessToken: verified ? generateAccessToken(user_id) : null,
-		refreshToken: verified ? await generateRefreshToken(user_id) : null,
+		accessToken: verified
+			? generateAccessToken(filteredUser.user_id)
+			: null,
+		refreshToken: verified
+			? await generateRefreshToken(filteredUser.user_id)
+			: null,
 	});
 });
 

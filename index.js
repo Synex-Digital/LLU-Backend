@@ -12,6 +12,7 @@ import { facilitatorRouter } from './routes/facilitatorRoutes.js';
 import { uploadDir } from './middleware/uploadMiddleware.js';
 import { userRouter } from './routes/userRoutes.js';
 import { socketInitialize } from './realtime/socket.js';
+import { exec } from 'child_process';
 
 dotenv.config();
 const app = express();
@@ -45,12 +46,29 @@ app.get('/', (req, res) => {
 app.use(notFound);
 app.use(errorHandler);
 
+app.post('/webhook', (req, res) => {
+	const githubEvent = req.headers['x-github-event'];
+
+	if (githubEvent === 'push') {
+		console.log('Received a push event from GitHub.');
+		exec('./run.sh', (error, stdout, stderr) => {
+			if (error) {
+				console.error(`Error executing script: ${error}`);
+				return res.status(500).send('Internal server error');
+			}
+			console.log(`Script output: ${stdout}`);
+			res.status(200).send('Webhook received and script executed.');
+		});
+	} else {
+		res.status(200).send('Webhook received but no action taken.');
+	}
+});
+
 const port = process.env.SERVER_PORT || 8080;
 const server = app.listen(port, () => {
 	console.log('Server is running on ' + port);
 	console.log(`Listening on http://localhost:${port}/`);
 	console.log(`Production link: http://18.188.214.41:3000/`);
-	console.log(``);
 });
 
 //! modify after using

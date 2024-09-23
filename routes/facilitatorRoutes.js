@@ -7,6 +7,7 @@ import {
 	facilitatorAssignEmployee,
 	facilitatorCheck,
 	facilitatorCompletedSessions,
+	facilitatorDeleteFacilityImage,
 	facilitatorDetails,
 	facilitatorEdit,
 	facilitatorEmployees,
@@ -95,19 +96,15 @@ facilitatorRouter
 	)
 	.patch(protect, facilitatorCheck, facilitatorFetch, facilitatorEdit);
 
-//TODO have to fix facilitator_id
 facilitatorRouter
 	.route('/:facilitator_id/add_facility')
-	.post(protect, facilitatorCheck, facilitatorAddFacility);
-
-facilitatorRouter
-	.route('/:facility_id/add_employee')
-	.post(protect, facilitatorCheck, facilitatorAssignEmployee);
-
-//TODO have to shift to post when posting data
-facilitatorRouter
-	.route('/:facility_id/add_amenities')
-	.post(protect, facilitatorCheck, facilitatorAddAmenities);
+	.post(
+		protect,
+		facilitatorCheck,
+		facilitatorAddFacility,
+		facilitatorAssignEmployee,
+		facilitatorAddAmenities
+	);
 
 facilitatorRouter
 	.route('/:facilitator_id/employees')
@@ -129,19 +126,21 @@ facilitatorRouter
 	.route('/:facility_id/add_review')
 	.post(protect, facilityReviewerCheck, facilityReview);
 
+facilitatorRouter
+	.route('/delete_img/:facility_img_id')
+	.delete(protect, facilitatorCheck, facilitatorDeleteFacilityImage);
+
 //TODO create facility edit image route
-//TODO have to give facilitator_id
-//TODO merge facility amenities and employee assign
 //TODO have to create route for ongoing, upcoming and history see all
 //TODO have to count no of pages in pagination
 //TODO have to create notification route
 //TODO single facility image delete and fetch previous
-//TODO direction to athlete
 //TODO change email
 //TODO like and unlike
 //TODO can comment
 //TODO community profile other individual
 //TODO user follow other
 //TODO search
+//TODO remove facility description
 
 export { facilitatorRouter };

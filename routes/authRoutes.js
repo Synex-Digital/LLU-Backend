@@ -49,8 +49,6 @@ authRouter.route('/login').post(authValidates, passwordCompare, authLogin);
 
 authRouter.route('/token').post(authCheckRefreshToken);
 
-//TODO: have to create session login
-
 authRouter
 	.route('/reset_password')
 	.post(authOTPVerify, passwordHash, authResetPassword);
