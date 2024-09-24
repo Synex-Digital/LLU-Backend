@@ -587,7 +587,7 @@ const userCreateChat = expressAsyncHandler(async (req, res) => {
 			user_id = ? AND friend_user_id = ?`,
 		[user_id, user.user_id]
 	);
-	if (chats.chat_id) {
+	if (chats?.chat_id) {
 		res.status(200).json({
 			message: 'Already created',
 		});
