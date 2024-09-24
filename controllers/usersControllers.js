@@ -578,6 +578,21 @@ const userGetMessagesInChat = expressAsyncHandler(async (req, res) => {
 const userCreateChat = expressAsyncHandler(async (req, res) => {
 	const { user_id } = req.params;
 	const { user } = req;
+	const [[chats]] = await pool.query(
+		`SELECT 
+			chat_id 
+		FROM 
+			chats 
+		WHERE 
+			user_id = ? AND friend_user_id = ?`,
+		[user_id, user.user_id]
+	);
+	if (chats.chat_id) {
+		res.status(200).json({
+			message: 'Already created',
+		});
+		return;
+	}
 	const salt = await bcrypt.genSalt(parseInt(process.env.SALT_ITR));
 	const room_id = await bcrypt.hash(user.user_id + '-' + user_id, salt);
 	const [{ affectedRows }] = await pool.query(
