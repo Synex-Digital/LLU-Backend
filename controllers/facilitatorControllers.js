@@ -284,6 +284,7 @@ const facilitatorUpcomingSessions = expressAsyncHandler(async (req, res) => {
 	});
 });
 
+//TODO have to fix sessions group by
 const facilitatorCompletedSessions = expressAsyncHandler(
 	async (req, res, next) => {
 		const { user_id } = req.user;

@@ -130,6 +130,7 @@ facilitatorRouter
 	.route('/delete_img/:facility_img_id')
 	.delete(protect, facilitatorCheck, facilitatorDeleteFacilityImage);
 
+//TODO search inside add trainer
 //TODO populate all database
 //TODO have to make sure if something is not created nothing is created in facility add
 //TODO create facility edit image route
