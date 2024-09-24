@@ -141,7 +141,6 @@ facilitatorRouter
 //TODO change email
 //TODO like and unlike
 //TODO can comment
-//TODO community profile other individual
 //TODO user follow other
 //TODO search
 //TODO remove facility description

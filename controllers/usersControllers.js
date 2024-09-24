@@ -126,6 +126,7 @@ const userCommunity = expressAsyncHandler(async (req, res, next) => {
 	const [posts] = await pool.query(
 		`SELECT
 			p.post_id,
+			u.user_id,
 			u.first_name,
 			u.last_name,
 			u.img,
@@ -190,6 +191,7 @@ const userRecommendedPost = expressAsyncHandler(async (req, res) => {
 	const [recommendedPosts] = await pool.query(
 		`SELECT
 			p.post_id,
+			u.user_id,
 			u.first_name,
 			u.last_name,
 			u.img,
@@ -321,8 +323,30 @@ const userIndividualPost = expressAsyncHandler(async (req, res) => {
 	});
 });
 
+//TODO have to ensure it is not same user
 const userProfile = expressAsyncHandler(async (req, res, next) => {
-	const { user_id, first_name, last_name, profile_picture, img } = req.user;
+	const { user_id } = req.params;
+	if (!user_id) {
+		res.status(400).json({
+			message: 'User id is missing in the url',
+		});
+		return;
+	}
+	const [[user]] = await pool.query(
+		`SELECT
+			user_id,
+			first_name, 
+			last_name, 
+			img, 
+			profile_picture, 
+			level, 
+			type
+		FROM 
+			users
+		WHERE
+			user_id = ?`,
+		[user_id]
+	);
 	const [[{ follower_no }]] = await pool.query(
 		`SELECT
 			COUNT(DISTINCT follower_user_id) AS follower_no
@@ -342,13 +366,7 @@ const userProfile = expressAsyncHandler(async (req, res, next) => {
 		[user_id]
 	);
 	req.userProfile = {
-		user: {
-			user_id,
-			first_name,
-			last_name,
-			profile_picture,
-			img,
-		},
+		user,
 		follower_no,
 		following_no,
 	};
@@ -356,7 +374,7 @@ const userProfile = expressAsyncHandler(async (req, res, next) => {
 });
 
 const userOwnPosts = expressAsyncHandler(async (req, res) => {
-	const { user_id } = req.user;
+	const { user_id } = req.params;
 	let { page, limit } = req.query;
 	page = parseInt(page) || 1;
 	limit = parseInt(limit) || 10;

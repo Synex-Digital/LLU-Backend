@@ -35,7 +35,7 @@ userRouter
 	.route('/posts/:post_id')
 	.get(protect, userGetComments, userIndividualPost);
 
-userRouter.route('/profile').get(protect, userProfile, userOwnPosts);
+userRouter.route('/profile/:user_id').get(protect, userProfile, userOwnPosts);
 
 userRouter.route('/create_chat/:user_id').get(protect, userCreateChat);
 
