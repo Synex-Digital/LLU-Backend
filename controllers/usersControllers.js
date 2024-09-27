@@ -589,6 +589,7 @@ const userGetMessagesInChat = expressAsyncHandler(async (req, res) => {
 const userCreateChat = expressAsyncHandler(async (req, res) => {
 	const { user_id } = req.params;
 	const { user } = req;
+	console.log(user_id, user.user_id);
 	if (user_id === user.user_id) {
 		res.status(403).json({
 			message: "You can't create chat with yourself",
