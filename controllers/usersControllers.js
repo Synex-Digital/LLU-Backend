@@ -161,7 +161,6 @@ const userCommunity = expressAsyncHandler(async (req, res, next) => {
 		[user_id, limit, offset]
 	);
 	if (posts.length === 0) {
-		console.log('moving to next');
 		next();
 		return;
 	}
@@ -551,7 +550,6 @@ const userGetMessagesInChat = expressAsyncHandler(async (req, res) => {
 	}
 	start_time += ' 00:00:00';
 	end_time += ' 23:59:59';
-	console.log(start_time, end_time);
 	if (!room_id) {
 		res.status(400).json({
 			message: 'Chat id is missing the url',
@@ -590,7 +588,7 @@ const userCreateChat = expressAsyncHandler(async (req, res) => {
 	const { user_id } = req.params;
 	const { user } = req;
 	console.log(user_id, user.user_id);
-	if (user_id === user.user_id) {
+	if (parseInt(user_id) === user.user_id) {
 		res.status(403).json({
 			message: "You can't create chat with yourself",
 		});
