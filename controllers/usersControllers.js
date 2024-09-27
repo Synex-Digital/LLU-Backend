@@ -433,6 +433,8 @@ const userUnreadChats = expressAsyncHandler(async (req, res, next) => {
 	const [chats] = await pool.query(
 		`SELECT
 			c.chat_id,
+			um.unseen_message_id,
+			c.friend_user_id,
 			c.notification_status,
 			c.room_id,
 			IF(u.socket_id IS NULL, FALSE, TRUE) AS active,
@@ -467,6 +469,14 @@ const userUnreadChats = expressAsyncHandler(async (req, res, next) => {
 			u.img`,
 		[user_id]
 	);
+	for (const { unseen_message_id } of chats) {
+		const [{ affectedRows }] = await pool.query(
+			`DELETE FROM unseen_messages WHERE unseen_message_id = ?`,
+			[unseen_message_id]
+		);
+		if (affectedRows === 0)
+			throw new Error('Failed to fetch unseen messages');
+	}
 	req.newMessageChats = chats;
 	next();
 });
@@ -481,6 +491,7 @@ const userNormalChats = expressAsyncHandler(async (req, res) => {
 		`SELECT
 			c.chat_id,
 			c.notification_status,
+			c.friend_user_id,
 			c.room_id,
 			IF(u.socket_id IS NULL, FALSE, TRUE) AS active,
 			(
@@ -578,6 +589,12 @@ const userGetMessagesInChat = expressAsyncHandler(async (req, res) => {
 const userCreateChat = expressAsyncHandler(async (req, res) => {
 	const { user_id } = req.params;
 	const { user } = req;
+	if (user_id === user.user_id) {
+		res.status(403).json({
+			message: "You can't create chat with yourself",
+		});
+		return;
+	}
 	const [[chats]] = await pool.query(
 		`SELECT 
 			chat_id 

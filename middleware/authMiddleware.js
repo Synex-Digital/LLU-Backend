@@ -48,6 +48,12 @@ const protect = expressAsyncHandler(async (req, res, next) => {
 		try {
 			token = req.headers.authorization.split(' ')[1];
 			req.user = await verifyToken(token);
+			if (!req.user) {
+				res.status(403).json({
+					message: 'Invalid token',
+				});
+				return;
+			}
 			next();
 		} catch (error) {
 			throw new Error('Failed to authorize token');

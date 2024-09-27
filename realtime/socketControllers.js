@@ -66,6 +66,12 @@ const joinChat = async (data, socket) => {
 		return;
 	}
 	const user = await verifyToken(token);
+	if (!user) {
+		socket.emit('validation', {
+			message: 'Invalid token',
+		});
+		return;
+	}
 	const [[{ room_id }]] = await pool.query(
 		`SELECT
             room_id
@@ -195,6 +201,10 @@ const sendMessage = async (data, socket) => {
 	}
 	if (user.socket_id) {
 		socket.in(room_id).emit('receive_message', {
+			time,
+			user_id,
+			room_id,
+			chat_id,
 			message_content: content,
 		});
 		return;

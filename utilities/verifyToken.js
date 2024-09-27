@@ -6,12 +6,7 @@ const verifyToken = async (token) => {
 	const [[user]] = await pool.query(`SELECT * FROM users WHERE user_id = ?`, [
 		decoded.id,
 	]);
-	if (!user) {
-		res.status(400).json({
-			message: 'There is no user with this token credentials',
-		});
-		return;
-	}
+	if (!user) return null;
 	return user;
 };
 
