@@ -55,6 +55,7 @@ app.post('/webhook', (req, res) => {
 			}
 			console.log(`Script output: ${stdout}`);
 			console.log('Script ran successfully via webhook.');
+			console.log('test');
 			return res.status(200).json({
 				message: 'Ping event received, script executed successfully.',
 			});
