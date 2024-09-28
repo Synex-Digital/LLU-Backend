@@ -22,6 +22,7 @@ import {
 	userLikeComment,
 } from '../controllers/usersControllers.js';
 import { uploadMultiple } from '../middleware/uploadMiddleware.js';
+import { sanitizeInput } from '../middleware/dangerousHTMLMiddleware.js';
 
 const userRouter = Router();
 
@@ -30,6 +31,7 @@ userRouter
 	.post(
 		protect,
 		uploadMultiple,
+		sanitizeInput,
 		userAddPost,
 		userAddPostImage,
 		userReservePostForFollowers

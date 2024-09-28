@@ -116,7 +116,6 @@ const userReservePostForFollowers = expressAsyncHandler(async (req, res) => {
 	});
 });
 
-//TODO handle dangerous html
 const userCommunity = expressAsyncHandler(async (req, res, next) => {
 	let { page, limit } = req.query;
 	page = parseInt(page) || 1;

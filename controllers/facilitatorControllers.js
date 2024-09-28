@@ -82,8 +82,6 @@ const facilitatorFacilityImage = expressAsyncHandler(async (req, res) => {
 		if (affectedRows === 0)
 			throw new Error('Failed to upload facility image');
 	}
-	if (affectedRows === 0)
-		throw new Error('Failed to upload image into facility');
 	res.status(201).json({
 		message: 'Successfully uploaded facility image',
 	});
