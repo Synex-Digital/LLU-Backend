@@ -53,7 +53,7 @@ app.post('/webhook', (req, res) => {
 				});
 			}
 			console.log(`Script output: ${stdout}`);
-			console.log(`Script ran successfully ...`);
+			console.log(`Script ran successfully ... by web hook`);
 			res.status(200).json({
 				message: 'Webhook received and script executed.',
 			});
