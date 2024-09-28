@@ -1,4 +1,5 @@
 import { pool } from '../config/db.js';
+import { uploadDir } from '../middleware/uploadMiddleware.js';
 import { verifyToken } from '../utilities/verifyToken.js';
 
 const connectUser = async (data, socket) => {
@@ -221,6 +222,34 @@ const sendMessage = async (data, socket) => {
 	}
 };
 
+const uploadImage = async (img, data, socket) => {
+	const { imageName, chat_id, time } = data;
+	const imagePath = path.join(uploadDir, `${Date.now()}-${imageName}`);
+	fs.writeFile(imagePath, img, async (err) => {
+		if (err) {
+			console.error('Error saving image:', err);
+			socket.emit('validation', {
+				message: 'Image upload failed',
+			});
+			return;
+		}
+		console.log('Image uploaded successfully');
+		const [{ affectedRows }] = await pool.query(
+			`INSERT INTO messages (chat_id, content, time) VALUES (?, ?, ?)`,
+			[chat_id, imagePath, time]
+		);
+		if (affectedRows === 0) {
+			socket.emit('validation', {
+				message: 'Failed to add message',
+			});
+			return;
+		}
+		socket.emit('validation', {
+			message: 'Image uploaded successfully',
+		});
+	});
+};
+
 export {
 	connectUser,
 	disconnectUser,
@@ -229,4 +258,5 @@ export {
 	startTyping,
 	stopTyping,
 	sendMessage,
+	uploadImage,
 };

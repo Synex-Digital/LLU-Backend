@@ -29,7 +29,7 @@ import {
 	facilitySessionTrainer,
 } from '../controllers/facilitatorControllers.js';
 import { protect } from '../middleware/authMiddleware.js';
-import { uploadMultiple } from '../middleware/uploadMiddleware.js';
+import { deleteFile, uploadMultiple } from '../middleware/uploadMiddleware.js';
 import { athleteFeaturedTrainer } from '../controllers/athleteControllers.js';
 
 const facilitatorRouter = Router();
@@ -128,7 +128,12 @@ facilitatorRouter
 
 facilitatorRouter
 	.route('/delete_img/:facility_img_id')
-	.delete(protect, facilitatorCheck, facilitatorDeleteFacilityImage);
+	.delete(
+		protect,
+		facilitatorCheck,
+		deleteFile,
+		facilitatorDeleteFacilityImage
+	);
 
 //TODO search inside add trainer
 //TODO populate all database
@@ -137,13 +142,7 @@ facilitatorRouter
 //TODO have to create route for ongoing, upcoming and history see all
 //TODO have to count no of pages in pagination
 //TODO have to create notification route
-//TODO single facility image delete and fetch previous
-//TODO change email
-//TODO like and unlike
-//TODO can comment
-//TODO user follow other
 //TODO search
 //TODO remove facility description
-//TODO have to ensure image as message
 
 export { facilitatorRouter };

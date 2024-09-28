@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import passport from 'passport';
-import { isLoggedIn } from '../middleware/authMiddleware.js';
+import { isLoggedIn, protect } from '../middleware/authMiddleware.js';
 import {
 	authLoginFailure,
 	authLoginSuccess,
@@ -14,6 +14,7 @@ import {
 	authValidates,
 	authLogin,
 	authCheckRefreshToken,
+	authChangeEmail,
 } from '../controllers/authControllers.js';
 import {
 	passwordCompare,
@@ -42,6 +43,8 @@ authRouter.route('/logout').post(authLogout);
 authRouter.route('/request_OTP').get(authRequestOTP);
 
 authRouter.route('/verify_OTP').post(authOTPVerify, authOTPSuccess);
+
+authRouter.route('/change_email').post(protect, authChangeEmail);
 
 authRouter.route('/register').post(passwordHash, authRegister);
 

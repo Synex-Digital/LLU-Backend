@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import expressAsyncHandler from 'express-async-handler';
+import { pool } from '../config/db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -63,4 +64,39 @@ const uploadMultiple = expressAsyncHandler(async (req, res, next) => {
 	});
 });
 
-export { uploadFile, uploadDir, uploadMultiple };
+const deleteFile = expressAsyncHandler(async (req, res, next) => {
+	const { facility_img_id } = req.params;
+	if (!facility_img_id) {
+		return res.status(400).json({
+			message: 'Facility img id is missing',
+		});
+	}
+	const [[{ img }]] = await pool.query(
+		`SELECT img FROM facility_img WHERE facility_img_id = ?`,
+		[facility_img_id]
+	);
+	if (!img) {
+		return res.status(400).json({
+			message: 'There is no facility by this facility_id',
+		});
+	}
+	const fileName = path.basename(img);
+	const fullFilePath = path.join(uploadDir, fileName);
+
+	fs.unlink(fullFilePath, (err) => {
+		if (err) {
+			if (err.code === 'ENOENT') {
+				res.status(400).json({
+					message: 'File not found',
+				});
+				return;
+			} else {
+				throw new Error('Error deleting file');
+			}
+		} else {
+			next();
+		}
+	});
+});
+
+export { uploadFile, uploadDir, uploadMultiple, deleteFile };

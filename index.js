@@ -48,20 +48,15 @@ app.post('/webhook', (req, res) => {
 	if (githubEvent === 'push') {
 		exec('./run.sh', (error, stdout, stderr) => {
 			if (error) {
-				console.error(`Error executing script: ${stderr}`);
 				return res.status(500).json({
 					message: 'Internal server error. Script execution failed.',
 				});
 			}
-			console.log(`Script output: ${stdout}`);
-			console.log('Script ran successfully via webhook.');
-			console.log('test123');
 			return res.status(200).json({
-				message: 'Ping event received, script executed successfully.',
+				message: 'push event received, script executed successfully.',
 			});
 		});
 	} else {
-		console.log(`Unhandled event type: ${githubEvent}`);
 		return res.status(200).json({
 			message:
 				'Webhook received but no action taken for this event type.',

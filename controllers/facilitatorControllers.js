@@ -846,6 +846,7 @@ const facilitatorEmployees = expressAsyncHandler(async (req, res) => {
 	}
 	const [employees] = await pool.query(
 		`SELECT
+			t.trainer_id,
 			u.first_name,
 			u.last_name,
 			u.profile_picture,

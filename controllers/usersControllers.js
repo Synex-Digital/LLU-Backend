@@ -278,6 +278,7 @@ const userIndividualPost = expressAsyncHandler(async (req, res) => {
 			p.post_id,
 			u.first_name,
 			u.last_name,
+			c.comment_id,
 			u.img,
 			u.profile_picture,
 			GROUP_CONCAT(DISTINCT pi.img ORDER BY pi.img SEPARATOR ',') AS post_images,
@@ -304,7 +305,8 @@ const userIndividualPost = expressAsyncHandler(async (req, res) => {
 			u.img,
 			u.profile_picture,
 			p.time,
-			p.content`,
+			p.content,
+			c.comment_id`,
 		[post_id]
 	);
 	if (!post) throw new Error('There are no post by this id');
@@ -627,6 +629,158 @@ const userCreateChat = expressAsyncHandler(async (req, res) => {
 	});
 });
 
+const userDeleteAccount = expressAsyncHandler(async (req, res) => {
+	const { user_id } = req.params;
+	if (!user_id) {
+		res.status(400).json({
+			message: 'User id is missing',
+		});
+		return;
+	}
+	const [{ affectedRows }] = await pool.query(
+		`DELETE FROM users WHERE user_id = ?`,
+		[user_id]
+	);
+	if (affectedRows === 0) throw new Error('Failed to delete user');
+	res.status(200).json({
+		message: 'Successfully deleted user',
+	});
+});
+
+const userLikePost = expressAsyncHandler(async (req, res) => {
+	const { user_id } = req.user;
+	const { post_id } = req.params;
+	if (!post_id) {
+		res.status(400).json({
+			message: 'Post id is missing',
+		});
+		return;
+	}
+	if (!user_id) {
+		res.status(400).json({
+			message: 'User id is missing',
+		});
+		return;
+	}
+	const [[availableLike]] = await pool.query(
+		`SELECT * FROM likes WHERE user_id = ? AND post_id = ?`,
+		[user_id, post_id]
+	);
+	if (availableLike?.like_id) {
+		res.status(200).json({
+			message: 'Already liked the post',
+		});
+		return;
+	}
+	const [{ affectedRows }] = await pool.query(
+		`INSERT INTO likes (user_id, post_id) VALUES (?, ?)`,
+		[user_id, post_id]
+	);
+	if (affectedRows === 0) throw new Error('Failed to add like');
+	res.status(200).json({
+		message: 'Successfully added like',
+	});
+});
+
+const userRemoveLikePost = expressAsyncHandler(async (req, res) => {
+	const { user_id } = req.user;
+	const { post_id } = req.params;
+	if (!post_id) {
+		res.status(400).json({
+			message: 'Post id is missing',
+		});
+		return;
+	}
+	if (!user_id) {
+		res.status(400).json({
+			message: 'User id is missing',
+		});
+		return;
+	}
+	const [{ affectedRows }] = await pool.query(
+		`DELETE FROM likes WHERE user_id = ? AND post_id = ?`,
+		[user_id, post_id]
+	);
+	if (affectedRows === 0) {
+		res.status(400).json({
+			message: 'Post does not exist',
+		});
+		return;
+	}
+	res.status(200).json({
+		message: 'Successfully removed like',
+	});
+});
+
+const userFollow = expressAsyncHandler(async (req, res) => {
+	const { user_id } = req.params;
+	const { user } = req;
+	if (!user_id || !user.user_id) {
+		res.status(400).json({
+			message: 'User id is missing',
+		});
+		return;
+	}
+	const [{ affectedRows }] = await pool.query(
+		`INSERT INTO follows (follower_user_id, followed_user_id, notification_status) VALUES (?, ?, ?)`,
+		[user.user_id, user_id, 'all']
+	);
+	if (affectedRows === 0) throw new Error('Failed to follow user');
+	res.status(200).json({
+		message: 'Successfully followed user',
+	});
+});
+
+const userAddComment = expressAsyncHandler(async (req, res) => {
+	const { post_id } = req.params;
+	const { user_id } = req.user;
+	const { content, time } = req.body;
+	if (!post_id) {
+		res.status(400).json({
+			message: 'Post id is missing',
+		});
+		return;
+	}
+	if (!user_id) {
+		res.status(400).json({
+			message: 'User id is missing',
+		});
+		return;
+	}
+	if (!time || !content) {
+		res.status(400).json({
+			message: 'Content or time id is missing',
+		});
+		return;
+	}
+	const [{ affectedRows }] = await pool.query(
+		`INSERT INTO comments (user_id, post_id, time, content) VALUES (?, ?, ?, ?)`,
+		[user_id, post_id, time, content]
+	);
+	if (affectedRows === 0) throw new Error('Failed to add comment');
+	res.status(200).json({
+		message: 'Successfully added comment',
+	});
+});
+
+const userLikeComment = expressAsyncHandler(async (req, res) => {
+	const { comment_id } = req.params;
+	if (!comment_id) {
+		res.status(400).json({
+			message: 'Comment id is missing',
+		});
+		return;
+	}
+	const [{ affectedRows }] = await pool.query(
+		`UPDATE comments SET no_of_likes = no_of_likes + 1 WHERE comment_id = ?`,
+		[comment_id]
+	);
+	if (affectedRows === 0) throw new Error('Failed to like comment');
+	res.status(200).json({
+		message: 'Successfully liked comment',
+	});
+});
+
 export {
 	userAddReview,
 	userAddReviewImg,
@@ -643,4 +797,10 @@ export {
 	userNormalChats,
 	userGetMessagesInChat,
 	userCreateChat,
+	userDeleteAccount,
+	userLikePost,
+	userRemoveLikePost,
+	userFollow,
+	userAddComment,
+	userLikeComment,
 };

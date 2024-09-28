@@ -14,6 +14,12 @@ import {
 	userReservePostForFollowers,
 	userGetMessagesInChat,
 	userCreateChat,
+	userDeleteAccount,
+	userLikePost,
+	userRemoveLikePost,
+	userFollow,
+	userAddComment,
+	userLikeComment,
 } from '../controllers/usersControllers.js';
 import { uploadMultiple } from '../middleware/uploadMiddleware.js';
 
@@ -42,5 +48,17 @@ userRouter.route('/create_chat/:user_id').get(protect, userCreateChat);
 userRouter.route('/chats').get(protect, userUnreadChats, userNormalChats);
 
 userRouter.route('/chats/:room_id').get(protect, userGetMessagesInChat);
+
+userRouter.route('/delete_account/:user_id').get(protect, userDeleteAccount);
+
+userRouter.route('/like/:post_id').get(protect, userLikePost);
+
+userRouter.route('/remove_like/:post_id').get(protect, userRemoveLikePost);
+
+userRouter.route('/follow/:user_id').get(protect, userFollow);
+
+userRouter.route('/comment/:post_id').post(protect, userAddComment);
+
+userRouter.route('/like_comment/:comment_id').get(protect, userLikeComment);
 
 export { userRouter };

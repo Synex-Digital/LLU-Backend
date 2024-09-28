@@ -463,6 +463,25 @@ const authCheckRefreshToken = expressAsyncHandler(async (req, res) => {
 	});
 });
 
+const authChangeEmail = expressAsyncHandler(async (req, res) => {
+	const { email } = req.body;
+	const { user_id } = req.user;
+	if (!email) {
+		res.status(403).json({
+			message: 'Email is missing',
+		});
+		return;
+	}
+	const [{ affectedRows }] = await pool.query(
+		`UPDATE users SET email = ? WHERE user_id = ?`,
+		[email, user_id]
+	);
+	if (affectedRows === 0) throw new Error('Failed to update user email');
+	res.status(200).json({
+		message: 'Successfully updated user email',
+	});
+});
+
 export {
 	authLogout,
 	authLoginFailure,
@@ -476,4 +495,5 @@ export {
 	authValidates,
 	authLogin,
 	authCheckRefreshToken,
+	authChangeEmail,
 };

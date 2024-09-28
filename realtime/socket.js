@@ -8,6 +8,7 @@ import {
 	sendMessage,
 	startTyping,
 	stopTyping,
+	uploadImage,
 } from './socketControllers.js';
 
 //TODO have to handle token in every socket
@@ -34,6 +35,10 @@ const socketInitialize = (socket) => {
 
 	socket.on('send_message', async (data) => {
 		await sendMessage(data, socket);
+	});
+
+	socket.on('send_img', async (img, data) => {
+		await uploadImage(img, data, socket);
 	});
 };
 
