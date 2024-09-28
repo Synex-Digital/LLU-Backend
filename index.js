@@ -45,7 +45,7 @@ app.get('/', (req, res) => {
 
 app.post('/webhook', (req, res) => {
 	const githubEvent = req.headers['x-github-event'];
-	if (githubEvent === 'ping') {
+	if (githubEvent === 'push') {
 		exec('./run.sh', (error, stdout, stderr) => {
 			if (error) {
 				console.error(`Error executing script: ${stderr}`);
