@@ -43,26 +43,30 @@ app.get('/', (req, res) => {
 	});
 });
 
-app.use(notFound);
-app.use(errorHandler);
-
 app.post('/webhook', (req, res) => {
 	const githubEvent = req.headers['x-github-event'];
-
 	if (githubEvent === 'push') {
-		console.log('Received a push event from GitHub.');
-		exec('./run.sh', (error, stdout, stderr) => {
+		exec('run.sh', (error, stdout, stderr) => {
 			if (error) {
-				console.error(`Error executing script: ${error}`);
-				return res.status(500).send('Internal server error');
+				return res.status(500).json({
+					message: 'Internal server error',
+				});
 			}
 			console.log(`Script output: ${stdout}`);
-			res.status(200).send('Webhook received and script executed.');
+			console.log('running...');
+			res.status(200).json({
+				message: 'Webhook received and script executed.',
+			});
 		});
 	} else {
-		res.status(200).send('Webhook received but no action taken.');
+		res.status(200).json({
+			message: 'Webhook received but no action taken.',
+		});
 	}
 });
+
+app.use(notFound);
+app.use(errorHandler);
 
 const port = process.env.SERVER_PORT || 8080;
 const server = app.listen(port, () => {

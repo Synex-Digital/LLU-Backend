@@ -144,5 +144,6 @@ facilitatorRouter
 //TODO user follow other
 //TODO search
 //TODO remove facility description
+//TODO have to ensure image as message
 
 export { facilitatorRouter };
