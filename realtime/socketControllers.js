@@ -224,6 +224,7 @@ const sendMessage = async (data, socket) => {
 };
 
 const uploadImage = async (img, data, socket) => {
+	console.log('Entered uploadImage()');
 	try {
 		const { imageName, chat_id, time } = data;
 		const imagePath = path.join(uploadDir, `${Date.now()}-${imageName}`);
