@@ -36,6 +36,8 @@ const socketInitialize = (socket) => {
 	});
 
 	socket.on('send_img', async (img, data) => {
+		console.log(img);
+		console.log(data);
 		await uploadImage(img, data, socket);
 	});
 };
