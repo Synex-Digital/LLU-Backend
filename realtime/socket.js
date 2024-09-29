@@ -1,5 +1,3 @@
-import { pool } from '../config/db.js';
-import { verifyToken } from '../utilities/verifyToken.js';
 import {
 	connectUser,
 	disconnectUser,

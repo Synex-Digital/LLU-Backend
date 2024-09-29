@@ -226,6 +226,9 @@ const sendMessage = async (data, socket) => {
 const uploadImage = async (img, data, socket) => {
 	const { imageName, chat_id, time } = data;
 	const imagePath = path.join(uploadDir, `${Date.now()}-${imageName}`);
+	socket.emit('validation', {
+		message: 'Hit socket endpoint',
+	});
 	fs.writeFile(imagePath, img, async (err) => {
 		if (err) {
 			console.error('Error saving image:', err);
@@ -248,6 +251,9 @@ const uploadImage = async (img, data, socket) => {
 		socket.emit('validation', {
 			message: 'Image uploaded successfully',
 		});
+	});
+	socket.emit('validation', {
+		message: 'end socket endpoint',
 	});
 };
 
