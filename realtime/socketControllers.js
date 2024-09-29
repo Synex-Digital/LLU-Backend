@@ -1,6 +1,7 @@
 import { pool } from '../config/db.js';
 import { uploadDir } from '../middleware/uploadMiddleware.js';
 import { verifyToken } from '../utilities/verifyToken.js';
+import fs from 'fs';
 
 const connectUser = async (data, socket) => {
 	const { token } = data;

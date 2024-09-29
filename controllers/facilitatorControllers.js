@@ -530,6 +530,7 @@ const facilityBasicDetails = expressAsyncHandler(async (req, res, next) => {
 	next();
 });
 
+//TODO fix gallery
 const facilityGallery = expressAsyncHandler(async (req, res, next) => {
 	let { page, limit } = req.query;
 	page = parseInt(page) || 1;
@@ -547,6 +548,7 @@ const facilityGallery = expressAsyncHandler(async (req, res, next) => {
 		LIMIT ? OFFSET ?`,
 		[facility_id, limit, offset]
 	);
+	console.log(gallery);
 	req.gallery = gallery;
 	next();
 });

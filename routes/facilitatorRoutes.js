@@ -145,5 +145,6 @@ facilitatorRouter
 //TODO search
 //TODO remove facility description
 //TODO fetch all added employees
+//TODO in add facility upload image problem so after creating use insertId
 
 export { facilitatorRouter };
