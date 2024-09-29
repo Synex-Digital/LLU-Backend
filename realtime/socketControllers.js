@@ -226,6 +226,8 @@ const sendMessage = async (data, socket) => {
 const uploadImage = async (img, data, socket) => {
 	console.log('Entered uploadImage()');
 	try {
+		console.log(data);
+		console.log(img);
 		const { imageName, chat_id, time } = data;
 		const imagePath = path.join(uploadDir, `${Date.now()}-${imageName}`);
 		console.log(imagePath);
@@ -242,6 +244,7 @@ const uploadImage = async (img, data, socket) => {
 		}
 		socket.emit('validation', { message: 'Image uploaded successfully' });
 	} catch (err) {
+		console.error('Error during image upload or DB operation:', err);
 		socket.emit('validation', { message: 'Image upload failed' });
 	}
 };
