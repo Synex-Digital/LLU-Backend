@@ -227,6 +227,7 @@ const uploadImage = async (img, data, socket) => {
 	try {
 		const { imageName, chat_id, time } = data;
 		const imagePath = path.join(uploadDir, `${Date.now()}-${imageName}`);
+		console.log(imagePath);
 		await fs.writeFile(imagePath, img);
 
 		console.log('Image uploaded successfully');
