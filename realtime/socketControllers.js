@@ -1,7 +1,7 @@
 import { pool } from '../config/db.js';
 import { uploadDir } from '../middleware/uploadMiddleware.js';
 import { verifyToken } from '../utilities/verifyToken.js';
-import fs from 'fs';
+import { promises as fs } from 'fs';
 
 const connectUser = async (data, socket) => {
 	const { token } = data;
@@ -224,37 +224,24 @@ const sendMessage = async (data, socket) => {
 };
 
 const uploadImage = async (img, data, socket) => {
-	const { imageName, chat_id, time } = data;
-	const imagePath = path.join(uploadDir, `${Date.now()}-${imageName}`);
-	socket.emit('validation', {
-		message: 'Hit socket endpoint',
-	});
-	fs.writeFile(imagePath, img, async (err) => {
-		if (err) {
-			console.error('Error saving image:', err);
-			socket.emit('validation', {
-				message: 'Image upload failed',
-			});
-			return;
-		}
+	try {
+		const { imageName, chat_id, time } = data;
+		const imagePath = path.join(uploadDir, `${Date.now()}-${imageName}`);
+		await fs.writeFile(imagePath, img);
+
 		console.log('Image uploaded successfully');
 		const [{ affectedRows }] = await pool.query(
 			`INSERT INTO messages (chat_id, content, time) VALUES (?, ?, ?)`,
 			[chat_id, imagePath, time]
 		);
 		if (affectedRows === 0) {
-			socket.emit('validation', {
-				message: 'Failed to add message',
-			});
+			socket.emit('validation', { message: 'Failed to add message' });
 			return;
 		}
-		socket.emit('validation', {
-			message: 'Image uploaded successfully',
-		});
-	});
-	socket.emit('validation', {
-		message: 'end socket endpoint',
-	});
+		socket.emit('validation', { message: 'Image uploaded successfully' });
+	} catch (err) {
+		socket.emit('validation', { message: 'Image upload failed' });
+	}
 };
 
 export {
