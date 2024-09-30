@@ -225,16 +225,10 @@ const sendMessage = async (data, socket) => {
 };
 
 const uploadImage = async (img, data, socket) => {
-	console.log('Entered uploadImage()');
 	try {
-		console.log(data);
-		console.log(img);
-		const { imageName, chat_id, time } = data;
+		const { imageName, chat_id, time, user_id, room_id } = data;
 		const imagePath = path.join(uploadDir, `${Date.now()}-${imageName}`);
-		console.log(imagePath);
 		await fs.writeFile(imagePath, img);
-
-		console.log('Image uploaded successfully');
 		const [{ affectedRows }] = await pool.query(
 			`INSERT INTO messages (chat_id, content, time) VALUES (?, ?, ?)`,
 			[chat_id, imagePath, time]
@@ -244,6 +238,14 @@ const uploadImage = async (img, data, socket) => {
 			return;
 		}
 		socket.emit('validation', { message: 'Image uploaded successfully' });
+		//TODO have to fix image link in messages
+		// socket.in(room_id).emit('receive_message', {
+		// 	time,
+		// 	user_id,
+		// 	room_id,
+		// 	chat_id,
+		// 	message_content: content,
+		// });
 	} catch (err) {
 		console.error('Error during image upload or DB operation:', err);
 		socket.emit('validation', { message: 'Image upload failed' });

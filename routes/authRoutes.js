@@ -40,7 +40,7 @@ authRouter.route('/google/failure').get(authLoginFailure);
 
 authRouter.route('/logout').post(authLogout);
 
-authRouter.route('/request_OTP').get(authRequestOTP);
+authRouter.route('/request_OTP').post(authRequestOTP);
 
 authRouter.route('/verify_OTP').post(authOTPVerify, authOTPSuccess);
 
