@@ -61,6 +61,12 @@ const authLoginSuccess = expressAsyncHandler(async (req, res) => {
 
 const authRequestOTP = expressAsyncHandler(async (req, res, next) => {
 	const { email } = req.body;
+	if (!email) {
+		res.status(400).json({
+			message: 'Email missing',
+		});
+		return;
+	}
 	const [available] = await pool.query(
 		`SELECT * FROM forgot_password WHERE email = ?`,
 		[email]
@@ -86,7 +92,7 @@ const authRequestOTP = expressAsyncHandler(async (req, res, next) => {
 	);
 	if (affectedRows === 0) throw new Error('Failed to invoke forgot password');
 	await req.mailer.sendMail({
-		from: 'shihab.cse.20210104156@aust.edu',
+		from: 'linklevelup552@gmail.com',
 		to: email,
 		subject: 'Your OTP for password reset',
 		text: `Your OTP is ${otp}. It expires in 30 minutes`,
