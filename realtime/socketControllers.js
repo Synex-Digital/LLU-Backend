@@ -1,8 +1,14 @@
 import { pool } from '../config/db.js';
-import { uploadDir } from '../middleware/uploadMiddleware.js';
 import { verifyToken } from '../utilities/verifyToken.js';
-import { promises as fs } from 'fs';
-import path from 'path';
+import AWS from 'aws-sdk';
+import dotenv from 'dotenv';
+
+dotenv.config();
+const s3 = new AWS.S3({
+	accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+	secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+	region: process.env.AWS_REGION,
+});
 
 const connectUser = async (data, socket) => {
 	const { token } = data;
@@ -278,46 +284,46 @@ const uploadImage = async (img, data, socket) => {
 	try {
 		const { token, imageName, chat_id, time, room_id } = data;
 		if (!token) {
-			socket.emit('validation', {
-				message: 'Token is missing',
-			});
+			socket.emit('validation', { message: 'Token is missing' });
 			return;
 		}
 		const user = await verifyToken(token);
 		if (!user) {
-			socket.emit('validation', {
-				message: 'Invalid token',
-			});
+			socket.emit('validation', { message: 'Invalid token' });
 			return;
 		}
 		if (!user.socket_id) {
-			socket.emit('validation', {
-				message: 'Connect user first',
-			});
+			socket.emit('validation', { message: 'Connect user first' });
 			return;
 		}
-		const imagePath = path.join(uploadDir, `${Date.now()}-${imageName}`);
-		const imgName = path.basename(imagePath);
-		const linkPath = `${req.protocol}://${req.get(
-			'host'
-		)}/pictures/${imgName}`;
-		await fs.writeFile(imagePath, img);
+
+		const uniqueImageName = `${Date.now()}-${imageName}`;
+		const s3Params = {
+			Bucket: process.env.AWS_S3_BUCKET_NAME,
+			Key: uniqueImageName,
+			Body: img,
+			ACL: 'public-read',
+			ContentType: 'image/jpeg',
+		};
+
+		const uploadResult = await s3.upload(s3Params).promise();
+		const imageUrl = uploadResult.Location;
+
 		const [{ affectedRows }] = await pool.query(
 			`INSERT INTO messages (chat_id, content, time) VALUES (?, ?, ?)`,
-			[chat_id, linkPath, time]
+			[chat_id, imageUrl, time]
 		);
 		if (affectedRows === 0) {
 			socket.emit('validation', { message: 'Failed to add message' });
 			return;
 		}
 		socket.emit('validation', { message: 'Image uploaded successfully' });
-		//TODO have to debug image link in messages
 		socket.in(room_id).emit('receive_message', {
 			time,
 			user_id: user.user_id,
 			room_id,
 			chat_id,
-			message_content: linkPath,
+			message_content: imageUrl,
 		});
 	} catch (err) {
 		console.error('Error during image upload or DB operation:', err);

@@ -9,7 +9,6 @@ import { authRouter } from './routes/authRoutes.js';
 import { mailerMiddleware } from './middleware/mailerMiddleware.js';
 import { athleteRouter } from './routes/athleteRoutes.js';
 import { facilitatorRouter } from './routes/facilitatorRoutes.js';
-import { uploadDir } from './middleware/uploadMiddleware.js';
 import { userRouter } from './routes/userRoutes.js';
 import { socketInitialize } from './realtime/socket.js';
 import { exec } from 'child_process';
@@ -28,7 +27,6 @@ app.use(passport.initialize());
 app.use(passport.session());
 app.use(cors());
 app.use(express.json());
-app.use('/pictures', express.static(uploadDir));
 app.use(mailerMiddleware);
 
 app.use('/auth', authRouter);
