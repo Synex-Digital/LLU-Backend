@@ -323,9 +323,13 @@ const userIndividualPost = expressAsyncHandler(async (req, res) => {
 	});
 });
 
-//TODO have to ensure it is not same user
 const userProfile = expressAsyncHandler(async (req, res, next) => {
 	const { user_id } = req.params;
+	const [[availableFollow]] = await pool.query(
+		`SELECT * FROM follows WHERE follower_user_id = ? AND followed_user_id = ?`,
+		[req.user.user_id, user_id]
+	);
+	const followed = availableFollow ? true : false;
 	if (!user_id) {
 		res.status(400).json({
 			message: 'User id is missing in the url',
@@ -367,6 +371,7 @@ const userProfile = expressAsyncHandler(async (req, res, next) => {
 	);
 	req.userProfile = {
 		user,
+		followed,
 		follower_no,
 		following_no,
 	};

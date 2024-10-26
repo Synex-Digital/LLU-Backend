@@ -9,8 +9,6 @@ import {
 	uploadImage,
 } from './socketControllers.js';
 
-//TODO have to handle token in every socket
-//TODO have to force steps unless unexpected behaviors
 const socketInitialize = (socket) => {
 	console.log('Connected to socket.io', socket.id);
 
@@ -28,8 +26,8 @@ const socketInitialize = (socket) => {
 		await leaveChat(data, socket);
 	});
 
-	socket.on('typing', (data) => startTyping(data, socket));
-	socket.on('stop_typing', (data) => stopTyping(data, socket));
+	socket.on('typing', async (data) => await startTyping(data, socket));
+	socket.on('stop_typing', async (data) => await stopTyping(data, socket));
 
 	socket.on('send_message', async (data) => {
 		await sendMessage(data, socket);

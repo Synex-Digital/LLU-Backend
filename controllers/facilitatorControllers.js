@@ -332,6 +332,8 @@ const facilitySessionDetails = expressAsyncHandler(async (req, res, next) => {
 	const [[sessionDetails]] = await pool.query(
 		`SELECT
 			fs.facility_sessions_id,
+			fs.name,
+			fs.description,
 			fs.start_time,
 			fs.end_time,
 			fa.latitude,

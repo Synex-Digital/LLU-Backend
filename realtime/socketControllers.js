@@ -41,6 +41,12 @@ const disconnectUser = async (data, socket) => {
 		return;
 	}
 	const user = await verifyToken(token);
+	if (!user) {
+		socket.emit('validation', {
+			message: 'Invalid token',
+		});
+		return;
+	}
 	const [{ affectedRows }] = await pool.query(
 		`UPDATE users SET socket_id = ? WHERE user_id = ?`,
 		[null, user.user_id]
@@ -72,6 +78,12 @@ const joinChat = async (data, socket) => {
 	if (!user) {
 		socket.emit('validation', {
 			message: 'Invalid token',
+		});
+		return;
+	}
+	if (!user.socket_id) {
+		socket.emit('validation', {
+			message: 'Connect user first',
 		});
 		return;
 	}
@@ -115,6 +127,12 @@ const leaveChat = async (data, socket) => {
 		});
 		return;
 	}
+	if (!user.socket_id) {
+		socket.emit('validation', {
+			message: 'Connect user first',
+		});
+		return;
+	}
 	socket.leave(room_id);
 	console.log('Left room: ' + room_id);
 	socket.emit('status', {
@@ -123,50 +141,76 @@ const leaveChat = async (data, socket) => {
 	});
 };
 
-const startTyping = (data, socket) => {
-	const { room_id, user_id } = data;
+const startTyping = async (data, socket) => {
+	const { token, room_id } = data;
+	if (!token) {
+		socket.emit('validation', {
+			message: 'Token is missing',
+		});
+		return;
+	}
+	const user = await verifyToken(token);
+	if (!user) {
+		socket.emit('validation', {
+			message: 'Invalid token',
+		});
+		return;
+	}
+	if (!user.socket_id) {
+		socket.emit('validation', {
+			message: 'Connect user first',
+		});
+		return;
+	}
 	if (!room_id) {
 		socket.emit('validation', {
 			message: 'Room id is missing',
 		});
 		return;
 	}
-	if (!user_id) {
-		socket.emit('validation', {
-			message: 'User id is missing',
-		});
-		return;
-	}
-	console.log(user_id, 'started typing in', room_id);
+	console.log(user.user_id, 'started typing in', room_id);
 	socket.in(room_id).emit('typing', {
-		user_id,
+		user_id: user.user_id,
 		message: 'User started typing',
 	});
 };
 
-const stopTyping = (data, socket) => {
-	const { room_id, user_id } = data;
+const stopTyping = async (data, socket) => {
+	const { token, room_id } = data;
+	if (!token) {
+		socket.emit('validation', {
+			message: 'Token is missing',
+		});
+		return;
+	}
+	const user = await verifyToken(token);
+	if (!user) {
+		socket.emit('validation', {
+			message: 'Invalid token',
+		});
+		return;
+	}
+	if (!user.socket_id) {
+		socket.emit('validation', {
+			message: 'Connect user first',
+		});
+		return;
+	}
 	if (!room_id) {
 		socket.emit('validation', {
 			message: 'Room id is missing',
 		});
 		return;
 	}
-	if (!user_id) {
-		socket.emit('validation', {
-			message: 'User id is missing',
-		});
-		return;
-	}
-	console.log(user_id, 'stopped typing in', room_id);
+	console.log(user.user_id, 'stopped typing in', room_id);
 	socket.in(room_id).emit('stop_typing', {
-		user_id,
+		user_id: user.user_id,
 		message: 'User stopped typing',
 	});
 };
 
 const sendMessage = async (data, socket) => {
-	const { token, room_id, chat_id, content, time, user_id } = data;
+	const { token, room_id, chat_id, content, time } = data;
 	if (!room_id) {
 		socket.emit('validation', {
 			message: 'Room id is missing',
@@ -183,6 +227,12 @@ const sendMessage = async (data, socket) => {
 	if (!user) {
 		socket.emit('validation', {
 			message: 'Invalid token',
+		});
+		return;
+	}
+	if (!user.socket_id) {
+		socket.emit('validation', {
+			message: 'Connect user first',
 		});
 		return;
 	}
@@ -205,7 +255,7 @@ const sendMessage = async (data, socket) => {
 	if (user.socket_id) {
 		socket.in(room_id).emit('receive_message', {
 			time,
-			user_id,
+			user_id: user.user_id,
 			room_id,
 			chat_id,
 			message_content: content,
@@ -214,7 +264,7 @@ const sendMessage = async (data, socket) => {
 	}
 	const [insertStatus] = await pool.query(
 		`INSERT INTO unseen_messages (message_id, user_id) VALUES (?, ?)`,
-		[insertId, user_id]
+		[insertId, user.user_id]
 	);
 	if (insertStatus.affectedRows === 0) {
 		socket.emit('validation', {
@@ -226,26 +276,49 @@ const sendMessage = async (data, socket) => {
 
 const uploadImage = async (img, data, socket) => {
 	try {
-		const { imageName, chat_id, time, user_id, room_id } = data;
+		const { token, imageName, chat_id, time, room_id } = data;
+		if (!token) {
+			socket.emit('validation', {
+				message: 'Token is missing',
+			});
+			return;
+		}
+		const user = await verifyToken(token);
+		if (!user) {
+			socket.emit('validation', {
+				message: 'Invalid token',
+			});
+			return;
+		}
+		if (!user.socket_id) {
+			socket.emit('validation', {
+				message: 'Connect user first',
+			});
+			return;
+		}
 		const imagePath = path.join(uploadDir, `${Date.now()}-${imageName}`);
+		const imgName = path.basename(imagePath);
+		const linkPath = `${req.protocol}://${req.get(
+			'host'
+		)}/pictures/${imgName}`;
 		await fs.writeFile(imagePath, img);
 		const [{ affectedRows }] = await pool.query(
 			`INSERT INTO messages (chat_id, content, time) VALUES (?, ?, ?)`,
-			[chat_id, imagePath, time]
+			[chat_id, linkPath, time]
 		);
 		if (affectedRows === 0) {
 			socket.emit('validation', { message: 'Failed to add message' });
 			return;
 		}
 		socket.emit('validation', { message: 'Image uploaded successfully' });
-		//TODO have to fix image link in messages
-		// socket.in(room_id).emit('receive_message', {
-		// 	time,
-		// 	user_id,
-		// 	room_id,
-		// 	chat_id,
-		// 	message_content: content,
-		// });
+		//TODO have to debug image link in messages
+		socket.in(room_id).emit('receive_message', {
+			time,
+			user_id: user.user_id,
+			room_id,
+			chat_id,
+			message_content: linkPath,
+		});
 	} catch (err) {
 		console.error('Error during image upload or DB operation:', err);
 		socket.emit('validation', { message: 'Image upload failed' });

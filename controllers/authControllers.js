@@ -189,27 +189,53 @@ const authRegister = expressAsyncHandler(async (req, res) => {
 });
 
 const athleteRegister = async (req, res, user_id) => {
-	const [[athlete]] = await pool.query(
-		`SELECT * FROM athletes WHERE user_id = ?`,
-		[user_id]
-	);
-	if (athlete)
-		await pool.query(`DELETE FROM athletes WHERE user_id = ?`, [user_id]);
-	const { age, weight, height, sport_interest, sport_level, gender } =
-		req.body;
+	const {
+		age,
+		weight,
+		height,
+		sport_interest,
+		sport_level,
+		gender,
+		latitude,
+		longitude,
+	} = req.body;
 	if (
 		!age ||
 		!weight ||
 		!height ||
 		!sport_interest ||
 		!sport_level ||
-		!gender
+		!gender ||
+		!latitude ||
+		!longitude
 	) {
 		res.status(400).json({
 			message: 'Missing attributes',
 		});
 		return;
 	}
+	const [[athlete]] = await pool.query(
+		`SELECT * FROM athletes WHERE user_id = ?`,
+		[user_id]
+	);
+	if (athlete) {
+		res.status(400).json({
+			message: 'Athlete already exists for this user_id',
+		});
+		return;
+	}
+	const [userUpdateStatus] = await pool.query(
+		`UPDATE 
+			users 
+		SET 
+			latitude = ?,
+			longitude = ?
+		WHERE
+			user_id = ?`,
+		[latitude, longitude, user_id]
+	);
+	if (userUpdateStatus.affectedRows === 0)
+		throw new Error('User update failed');
 	const [{ affectedRows }] = await pool.query(
 		`INSERT INTO athletes (user_id, age, weight, height, sport_interest, sport_level, gender) VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		[user_id, age, weight, height, sport_interest, sport_level, gender]
@@ -221,25 +247,48 @@ const athleteRegister = async (req, res, user_id) => {
 };
 
 const trainerRegister = async (req, res, user_id) => {
-	const [updateStatus] = await pool.query(
-		`UPDATE users SET type = ? WHERE user_id = ?`,
-		['trainer', user_id]
-	);
-	if (updateStatus.affectedRows === 0) throw new Error('User update failed');
-	const [[trainer]] = await pool.query(
-		`SELECT * FROM trainers WHERE user_id = ?`,
-		[user_id]
-	);
-	if (trainer)
-		await pool.query(`DELETE FROM trainers WHERE user_id = ?`, [user_id]);
-	const { hourly_rate, specialization, specialization_level, gender } =
-		req.body;
-	if (!hourly_rate || !specialization || !specialization_level || !gender) {
+	const {
+		hourly_rate,
+		specialization,
+		specialization_level,
+		gender,
+		latitude,
+		longitude,
+	} = req.body;
+	if (
+		!hourly_rate ||
+		!specialization ||
+		!specialization_level ||
+		!gender ||
+		!latitude ||
+		!longitude
+	) {
 		res.status(400).json({
 			message: 'Missing attributes',
 		});
 		return;
 	}
+	const [[trainer]] = await pool.query(
+		`SELECT * FROM trainers WHERE user_id = ?`,
+		[user_id]
+	);
+	if (trainer) {
+		res.status(400).json({
+			message: 'Trainer already exists for this user_id',
+		});
+		return;
+	}
+	const [updateStatus] = await pool.query(
+		`UPDATE 
+			users
+		SET
+			type = ?,
+			latitude = ?, 
+			longitude = ?
+		WHERE user_id = ?`,
+		['trainer', latitude, longitude, user_id]
+	);
+	if (updateStatus.affectedRows === 0) throw new Error('User update failed');
 	const [insertStatus] = await pool.query(
 		`INSERT INTO trainers (user_id, hourly_rate, specialization, specialization_level, gender) VALUES (?, ?, ?, ?, ?)`,
 		[user_id, hourly_rate, specialization, specialization_level, gender]
@@ -252,26 +301,35 @@ const trainerRegister = async (req, res, user_id) => {
 };
 
 const facilitatorRegister = async (req, res, user_id) => {
-	const [updateStatus] = await pool.query(
-		`UPDATE users SET type = ? WHERE user_id = ?`,
-		['facilitator', user_id]
-	);
-	if (updateStatus.affectedRows === 0) throw new Error('User update failed');
-	const [[facilitator]] = await pool.query(
-		`SELECT * FROM facilitators WHERE user_id = ?`,
-		[user_id]
-	);
-	if (facilitator)
-		await pool.query(`DELETE FROM facilitators WHERE user_id = ?`, [
-			user_id,
-		]);
-	const { no_of_professionals } = req.body;
-	if (!no_of_professionals) {
+	let { no_of_professionals, latitude, longitude } = req.body;
+	no_of_professionals = no_of_professionals || 0;
+	if (!latitude || !longitude) {
 		res.status(400).json({
 			message: 'Missing attributes',
 		});
 		return;
 	}
+	const [[facilitator]] = await pool.query(
+		`SELECT * FROM facilitators WHERE user_id = ?`,
+		[user_id]
+	);
+	if (facilitator) {
+		res.status(400).json({
+			message: 'Facilitator already exists for this user_id',
+		});
+		return;
+	}
+	const [updateStatus] = await pool.query(
+		`UPDATE 
+			users
+		SET
+			type = ?,
+			latitude = ?, 
+			longitude = ?
+		WHERE user_id = ?`,
+		['facilitator', latitude, longitude, user_id]
+	);
+	if (updateStatus.affectedRows === 0) throw new Error('User update failed');
 	const [insertStatus] = await pool.query(
 		`INSERT INTO facilitators (user_id, no_of_professionals) VALUES (?, ?)`,
 		[user_id, no_of_professionals]
@@ -284,37 +342,19 @@ const facilitatorRegister = async (req, res, user_id) => {
 };
 
 const parentRegister = async (req, res, user_id) => {
-	const [updateStatus] = await pool.query(
-		`UPDATE users SET type = ? WHERE user_id = ?`,
-		['parent', user_id]
-	);
-	if (updateStatus.affectedRows === 0) throw new Error('User update failed');
-	const { children } = req.body;
-	if (!Array.isArray(children)) {
-		res.status(422).json({
-			message: 'Wrong data type of children',
-		});
-		return;
-	}
-	const [[parent]] = await pool.query(
-		`SELECT * FROM parents WHERE user_id = ?`,
-		[user_id]
-	);
-	if (parent)
-		await pool.query(`DELETE FROM parents WHERE user_id = ?`, [user_id]);
-	const [insertStatus] = await pool.query(
-		`INSERT INTO parents (user_id) VALUES (?)`,
-		[user_id]
-	);
-	if (insertStatus.affectedRows === 0)
-		throw new Error('Specialized user creation failed');
-	if (children.length === 0) {
+	const { children, latitude, longitude } = req.body;
+	if (
+		!Array.isArray(children) ||
+		!children.length ||
+		!latitude ||
+		!longitude
+	) {
 		res.status(400).json({
-			message: 'No children sent',
+			message: 'Missing attributes or empty children array',
 		});
 		return;
 	}
-	children.forEach(async (child, index) => {
+	children.forEach((child, index) => {
 		const { name, age, gender, sport_interest, sport_level } = child;
 		if (!name || !age || !gender || !sport_interest || sport_level) {
 			res.status(400).json({
@@ -322,6 +362,36 @@ const parentRegister = async (req, res, user_id) => {
 			});
 			return;
 		}
+	});
+	const [updateStatus] = await pool.query(
+		`UPDATE 
+			users
+		SET
+			type = ?,
+			latitude = ?, 
+			longitude = ?
+		WHERE user_id = ?`,
+		['facilitator', latitude, longitude, user_id]
+	);
+	if (updateStatus.affectedRows === 0) throw new Error('User update failed');
+	const [[parent]] = await pool.query(
+		`SELECT * FROM parents WHERE user_id = ?`,
+		[user_id]
+	);
+	if (parent) {
+		res.status(400).json({
+			message: 'Parent already exists for this user_id',
+		});
+		return;
+	}
+	const [insertStatus] = await pool.query(
+		`INSERT INTO parents (user_id) VALUES (?)`,
+		[user_id]
+	);
+	if (insertStatus.affectedRows === 0)
+		throw new Error('Specialized user creation failed');
+	children.forEach(async (child, index) => {
+		const { name, age, gender, sport_interest, sport_level } = child;
 		const [childInsertStatus] = await pool.query(
 			`INSERT INTO children (parent_id, name, age, gender, sport_interest, sport_level) VALUES (?, ?, ?, ?, ?, ?)`,
 			[
@@ -481,6 +551,8 @@ const authChangeEmail = expressAsyncHandler(async (req, res) => {
 		message: 'Successfully updated user email',
 	});
 });
+
+//TODO have to fetch specializedUserId for google login
 
 export {
 	authLogout,
