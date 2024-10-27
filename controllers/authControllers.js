@@ -88,7 +88,6 @@ const authRequestOTP = expressAsyncHandler(async (req, res, next) => {
 		subject: 'Your OTP for password reset',
 		text: `Your OTP is ${otp}. It expires in 30 minutes`,
 	});
-	req.user_id = user.user_id;
 	res.status(200).json({
 		message: 'OTP sent successfully',
 	});
