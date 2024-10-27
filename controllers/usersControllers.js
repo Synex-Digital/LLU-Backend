@@ -79,6 +79,7 @@ const userAddPost = expressAsyncHandler(async (req, res, next) => {
 
 const userAddPostImage = expressAsyncHandler(async (req, res, next) => {
 	const { post_id, filePaths } = req;
+	console.log(filePaths);
 	for (const path of filePaths) {
 		const [{ affectedRows }] = await pool.query(
 			`INSERT INTO post_img (post_id, img) VALUES (?, ?)`,

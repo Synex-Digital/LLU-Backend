@@ -77,15 +77,6 @@ const authRequestOTP = expressAsyncHandler(async (req, res, next) => {
 		]);
 	const otp = generateOTP();
 	const expire_in = Date.now() * 30 * 60 * 1000;
-	const [[user]] = await pool.query(`SELECT * FROM users WHERE email = ?`, [
-		email,
-	]);
-	if (!user) {
-		res.status(401).json({
-			message: 'User does not exist',
-		});
-		return;
-	}
 	const [{ affectedRows }] = await pool.query(
 		`INSERT INTO forgot_password (email, otp, expires_in) VALUES (?, ?, ?)`,
 		[email, otp, expire_in]
