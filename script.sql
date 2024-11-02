@@ -271,7 +271,7 @@ CREATE TABLE IF NOT EXISTS `review_trainer_img` (
 ) ;
 
 CREATE TABLE IF NOT EXISTS `token_management` (
-  `token_management` bigint(20) NOT NULL,
+  `token_management_id` bigint(20) NOT NULL,
   `user_id` bigint(20) NOT NULL,
   `token` varchar(200) NOT NULL
 ) ;

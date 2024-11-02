@@ -4,6 +4,7 @@ import { Strategy as GoogleStrategy } from 'passport-google-oauth2';
 import passport from 'passport';
 import dotenv from 'dotenv';
 import { verifyToken } from '../utilities/verifyToken.js';
+import { pool } from '../config/db.js';
 
 dotenv.config();
 passport.use(
@@ -51,6 +52,16 @@ const protect = expressAsyncHandler(async (req, res, next) => {
 			if (!req.user) {
 				res.status(403).json({
 					message: 'Invalid token',
+				});
+				return;
+			}
+			const [[blacklisted_token]] = await pool.query(
+				`SELECT * FROM blacklisted_token WHERE access_token = ?`,
+				[token]
+			);
+			if (blacklisted_token) {
+				res.status(403).json({
+					message: 'Blacklisted token',
 				});
 				return;
 			}

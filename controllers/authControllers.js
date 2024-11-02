@@ -8,16 +8,24 @@ import {
 import { generateOTP } from '../utilities/generateOTP.js';
 
 const authLogout = expressAsyncHandler(async (req, res) => {
-	const { token } = req.body;
-	if (!token) {
+	const { accessToken, refreshToken } = req.body;
+	console.log(accessToken);
+	console.log(refreshToken);
+	if (!refreshToken || !accessToken) {
 		res.status(400).json({
 			message: 'Token is missing',
 		});
 		return;
 	}
+	const [insertStatus] = await pool.query(
+		`INSERT INTO blacklisted_token (refresh_token, access_token) VALUES (?, ?)`,
+		[refreshToken, accessToken]
+	);
+	if (insertStatus.affectedRows === 0)
+		throw new Error('Failed to blacklist token');
 	const [{ affectedRows }] = await pool.query(
 		`DELETE FROM token_management WHERE token = ?`,
-		[token]
+		[refreshToken]
 	);
 	if (affectedRows === 0) throw new Error('Failed to log out');
 	res.status(200).json({
@@ -510,6 +518,16 @@ const authCheckRefreshToken = expressAsyncHandler(async (req, res) => {
 	if (!token) {
 		res.status(200).json({
 			message: 'Token is missing',
+		});
+		return;
+	}
+	const [[blacklistedToken]] = await pool.query(
+		`SELECT * FROM blacklisted_token WHERE refresh_token = ?`,
+		[token]
+	);
+	if (blacklistedToken) {
+		res.status(403).json({
+			message: 'Blacklisted token',
 		});
 		return;
 	}
