@@ -152,7 +152,7 @@ const authResetPassword = expressAsyncHandler(async (req, res) => {
 const authRegister = expressAsyncHandler(async (req, res) => {
 	const { full_name, email } = req.body;
 	let message = '';
-	const nameRegex = /^[a-zA-Z]+([ ][a-zA-Z]+)*$/;
+	const nameRegex = /^[A-Z][a-z]+( [A-Z][a-z]+)+$/;
 	const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 	if (typeof full_name !== 'string' || typeof email !== 'string') {
 		res.status(400).json({
@@ -172,7 +172,8 @@ const authRegister = expressAsyncHandler(async (req, res) => {
 		});
 		return;
 	}
-	const [first_name, last_name] = full_name.split(' ');
+	const [first_name, ...rest] = full_name.split(' ');
+	const last_name = rest.join(' ');
 	const [{ affectedRows, insertId }] = await pool.query(
 		`INSERT INTO users (first_name, last_name, email, password) VALUES (?, ?, ?, ?)`,
 		[first_name, last_name, email, req.hash]
@@ -522,10 +523,23 @@ const authCheckRefreshToken = expressAsyncHandler(async (req, res) => {
 		});
 		return;
 	}
+	const [deletionStatus] = await pool.query(
+		`DELETE FROM token_management WHERE user_id = ? AND token = ?`,
+		[available.user_id, token]
+	);
+	if (deletionStatus.affectedRows === 0)
+		throw new Error('Failed to delete refresh token');
 	const decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
 	const accessToken = generateAccessToken(decoded.id);
+	const refreshToken = await generateRefreshToken(decoded.id);
+	const [{ affectedRows }] = await pool.query(
+		`INSERT INTO token_management (user_id, token) VALUES (?, ?)`,
+		[available.user_id, refreshToken]
+	);
+	if (affectedRows === 0) throw new Error('Failed to update refresh token');
 	res.status(200).json({
 		accessToken,
+		refreshToken,
 	});
 });
 

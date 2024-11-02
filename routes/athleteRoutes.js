@@ -22,7 +22,7 @@ import {
 	userAddReview,
 	userAddReviewImg,
 } from '../controllers/usersControllers.js';
-import { uploadFile } from '../middleware/uploadMiddleware.js';
+import { uploadFile, uploadToS3 } from '../middleware/uploadMiddleware.js';
 import { facilitySuggestions } from '../controllers/facilitatorControllers.js';
 
 const athleteRouter = Router();
@@ -74,7 +74,7 @@ athleteRouter
 
 athleteRouter
 	.route('/:review_id/add_img')
-	.post(protect, athleteCheck, uploadFile, userAddReviewImg);
+	.post(protect, athleteCheck, uploadFile, uploadToS3, userAddReviewImg);
 
 athleteRouter
 	.route('/suggested_facilities')

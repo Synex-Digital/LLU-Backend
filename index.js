@@ -35,7 +35,7 @@ app.use('/api/facilitator', facilitatorRouter);
 app.use('/api/user', userRouter);
 
 //! remove after testing
-app.get('/', (req, res) => {
+app.get('/', async (req, res) => {
 	res.status(200).json({
 		message: 'Connected!!',
 	});
