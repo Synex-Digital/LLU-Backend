@@ -29,7 +29,11 @@ import {
 	facilitySessionTrainer,
 } from '../controllers/facilitatorControllers.js';
 import { protect } from '../middleware/authMiddleware.js';
-import { deleteFile, uploadMultiple } from '../middleware/uploadMiddleware.js';
+import {
+	deleteFile,
+	uploadMultiple,
+	uploadMultipleToS3,
+} from '../middleware/uploadMiddleware.js';
 import { athleteFeaturedTrainer } from '../controllers/athleteControllers.js';
 
 const facilitatorRouter = Router();
@@ -120,7 +124,13 @@ facilitatorRouter
 
 facilitatorRouter
 	.route('/:facility_id/add_img')
-	.post(protect, facilitatorCheck, uploadMultiple, facilitatorFacilityImage);
+	.post(
+		protect,
+		facilitatorCheck,
+		uploadMultiple,
+		uploadMultipleToS3,
+		facilitatorFacilityImage
+	);
 
 facilitatorRouter
 	.route('/:facility_id/add_review')
@@ -131,8 +141,8 @@ facilitatorRouter
 	.delete(
 		protect,
 		facilitatorCheck,
-		deleteFile,
-		facilitatorDeleteFacilityImage
+		facilitatorDeleteFacilityImage,
+		deleteFile
 	);
 
 //TODO search inside add trainer

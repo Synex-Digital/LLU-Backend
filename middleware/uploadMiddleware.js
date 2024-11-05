@@ -42,10 +42,15 @@ const uploadFile = expressAsyncHandler(async (req, res, next) => {
 
 const uploadToS3 = expressAsyncHandler(async (req, res, next) => {
 	const file = req.file;
+	const { height, width } = req.body;
 	const imageName = generateRandomString();
 
 	const fileBuffer = await sharp(file.buffer)
-		.resize({ height: 1920, width: 1080, fit: 'contain' })
+		.resize({
+			height: height || 1920,
+			width: width || 1080,
+			fit: 'contain',
+		})
 		.toBuffer();
 
 	req.filePath = imageName;
@@ -62,50 +67,59 @@ const uploadToS3 = expressAsyncHandler(async (req, res, next) => {
 
 const uploadMultiple = expressAsyncHandler(async (req, res, next) => {
 	upload.array('img', 10)(req, res, function (err) {
-		if (err instanceof multer.MulterError) {
+		if (err instanceof multer.MulterError)
 			throw new Error(`message: ${err.message}`);
-		} else if (err) {
-			throw new Error(`message: ${err.message}`);
-		}
-
-		req.filePaths = req.files.map((file) => file.location);
+		else if (err) throw new Error(`message: ${err.message}`);
 		next();
 	});
 });
 
-const uploadMultipleToS3 = expressAsyncHandler(async (req, res, next) => {});
+const uploadMultipleToS3 = expressAsyncHandler(async (req, res, next) => {
+	const filePaths = [];
+	const { height, width } = req.body;
+	await Promise.all(
+		req.files.map(async (file) => {
+			const imageName = generateRandomString();
 
-const deleteFile = expressAsyncHandler(async (req, res, next) => {
-	const { facility_img_id } = req.params;
-	if (!facility_img_id) {
-		return res.status(400).json({
-			message: 'Facility img id is missing',
-		});
-	}
-	const [[{ img }]] = await pool.query(
-		`SELECT img FROM facility_img WHERE facility_img_id = ?`,
-		[facility_img_id]
-	);
-	if (!img) {
-		return res.status(400).json({
-			message: 'There is no facility by this facility_id',
-		});
-	}
+			const fileBuffer = await sharp(file.buffer)
+				.resize({
+					height: height || 1920,
+					width: width || 1080,
+					fit: 'contain',
+				})
+				.toBuffer();
 
-	s3.deleteObject(
-		{
-			Bucket: process.env.AWS_S3_BUCKET_NAME,
-			Key: img.split('/').pop(),
-		},
-		(err) => {
-			if (err) {
-				return res.status(500).json({
-					message: 'Error deleting file from S3',
-				});
-			}
-			next();
-		}
+			filePaths.push(imageName);
+			await s3Client.send(
+				new PutObjectCommand({
+					Bucket: process.env.AWS_S3_BUCKET_NAME,
+					Body: fileBuffer,
+					Key: imageName,
+					ContentType: file.mimetype,
+				})
+			);
+		})
 	);
+	req.filePaths = filePaths;
+	next();
 });
 
-export { uploadFile, uploadToS3, uploadMultiple, deleteFile };
+const deleteFile = expressAsyncHandler(async (req, res) => {
+	await s3Client.send(
+		new DeleteObjectCommand({
+			Bucket: process.env.AWS_S3_BUCKET_NAME,
+			Key: req.fileName,
+		})
+	);
+	res.status(200).json({
+		message: 'Successfully deleted facility image',
+	});
+});
+
+export {
+	uploadFile,
+	uploadToS3,
+	uploadMultiple,
+	uploadMultipleToS3,
+	deleteFile,
+};

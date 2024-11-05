@@ -899,23 +899,35 @@ const facilitatorAssignEmployee = expressAsyncHandler(
 	}
 );
 
-const facilitatorDeleteFacilityImage = expressAsyncHandler(async (req, res) => {
-	const { facility_img_id } = req.params;
-	if (!facility_img_id) {
-		res.status(400).json({
-			message: 'Facility img id is missing in the url',
-		});
-		return;
+const facilitatorDeleteFacilityImage = expressAsyncHandler(
+	async (req, res, next) => {
+		const { facility_img_id } = req.params;
+		if (!facility_img_id) {
+			res.status(400).json({
+				message: 'Facility img id is missing in the url',
+			});
+			return;
+		}
+		const [[{ img }]] = await pool.query(
+			`SELECT img FROM facility_img WHERE facility_img_id = ?`,
+			[facility_img_id]
+		);
+		if (!img) {
+			res.status(400).json({
+				message: 'There is no facility by this facility_id',
+			});
+			return;
+		}
+		req.fileName = img;
+		const [{ affectedRows }] = await pool.query(
+			`DELETE FROM facility_img WHERE facility_img_id = ?`,
+			[facility_img_id]
+		);
+		if (affectedRows === 0)
+			throw new Error('Failed to delete facility image');
+		next();
 	}
-	const [{ affectedRows }] = await pool.query(
-		`DELETE FROM facility_img WHERE facility_img_id = ?`,
-		[facility_img_id]
-	);
-	if (affectedRows === 0) throw new Error('Failed to delete facility image');
-	res.status(200).json({
-		message: 'Successfully deleted facility image',
-	});
-});
+);
 
 export {
 	facilitatorAddFacility,

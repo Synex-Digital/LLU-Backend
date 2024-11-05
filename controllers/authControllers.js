@@ -9,8 +9,6 @@ import { generateOTP } from '../utilities/generateOTP.js';
 
 const authLogout = expressAsyncHandler(async (req, res) => {
 	const { accessToken, refreshToken } = req.body;
-	console.log(accessToken);
-	console.log(refreshToken);
 	if (!refreshToken || !accessToken) {
 		res.status(400).json({
 			message: 'Token is missing',
