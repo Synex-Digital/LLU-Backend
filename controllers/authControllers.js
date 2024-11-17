@@ -158,16 +158,12 @@ const authResetPassword = expressAsyncHandler(async (req, res) => {
 const authRegister = expressAsyncHandler(async (req, res) => {
 	const { full_name, email } = req.body;
 	let message = '';
-	const nameRegex = /^[A-Z][a-z]+( [A-Z][a-z]+)+$/;
 	const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 	if (typeof full_name !== 'string' || typeof email !== 'string') {
 		res.status(400).json({
 			message: 'Bad input',
 		});
 		return;
-	}
-	if (!nameRegex.test(full_name)) {
-		message += 'Name is not appropriate\n';
 	}
 	if (!emailRegex.test(email)) {
 		message += 'Email is not appropriate\n';

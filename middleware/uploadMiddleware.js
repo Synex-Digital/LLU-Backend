@@ -6,10 +6,10 @@ import {
 	DeleteObjectCommand,
 	GetObjectCommand,
 } from '@aws-sdk/client-s3';
-import { pool } from '../config/db.js';
 import dotenv from 'dotenv';
 import { generateRandomString } from '../utilities/generateRandomString.js';
 import sharp from 'sharp';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 dotenv.config();
 
@@ -116,10 +116,20 @@ const deleteFile = expressAsyncHandler(async (req, res) => {
 	});
 });
 
+const getObjectSignedUrl = async (key) => {
+	const command = new GetObjectCommand({
+		Bucket: process.env.AWS_S3_BUCKET_NAME,
+		Key: key,
+	});
+	const url = await getSignedUrl(s3Client, command, { expiresIn: 60 });
+	return url;
+};
+
 export {
 	uploadFile,
 	uploadToS3,
 	uploadMultiple,
 	uploadMultipleToS3,
 	deleteFile,
+	getObjectSignedUrl,
 };

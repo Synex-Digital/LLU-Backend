@@ -112,6 +112,7 @@ const athleteNearbyFacilities = expressAsyncHandler(async (req, res, next) => {
 		LIMIT ? OFFSET ?;`,
 		[longitude, latitude, limit, offset]
 	);
+	console.log(nearbyFacilities);
 	req.nearbyFacilities = nearbyFacilities;
 	next();
 });
