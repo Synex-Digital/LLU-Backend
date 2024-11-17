@@ -175,7 +175,7 @@ const authRegister = expressAsyncHandler(async (req, res) => {
 		return;
 	}
 	const [{ affectedRows, insertId }] = await pool.query(
-		`INSERT INTO users (first_name, email, password) VALUES (?, ?, ?, ?)`,
+		`INSERT INTO users (first_name, email, password) VALUES (?, ?, ?)`,
 		[full_name, email, req.hash]
 	);
 	if (affectedRows === 0) throw new Error('Could not create user');
