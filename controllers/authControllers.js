@@ -174,11 +174,9 @@ const authRegister = expressAsyncHandler(async (req, res) => {
 		});
 		return;
 	}
-	const [first_name, ...rest] = full_name.split(' ');
-	const last_name = rest.join(' ');
 	const [{ affectedRows, insertId }] = await pool.query(
-		`INSERT INTO users (first_name, last_name, email, password) VALUES (?, ?, ?, ?)`,
-		[first_name, last_name, email, req.hash]
+		`INSERT INTO users (first_name, email, password) VALUES (?, ?, ?, ?)`,
+		[full_name, email, req.hash]
 	);
 	if (affectedRows === 0) throw new Error('Could not create user');
 	res.status(201).json({
