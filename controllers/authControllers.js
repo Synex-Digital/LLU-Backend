@@ -38,13 +38,12 @@ const authLoginFailure = expressAsyncHandler((req, res) => {
 });
 
 const authLoginSuccess = expressAsyncHandler(async (req, res) => {
-	const { id, given_name, family_name, email, email_verified, picture } =
-		req.user;
+	const { id, given_name, family_name, email, picture } = req.user;
 	const [[user]] = await pool.query(
 		`SELECT user_id, google_id, first_name, last_name, profile_picture, img, email FROM users WHERE email = ?`,
 		[email]
 	);
-	if (user && email_verified) {
+	if (user) {
 		const { user_id, ...filteredUser } = user;
 		res.status(200).json({
 			loginStatus: true,
@@ -101,6 +100,18 @@ const authRequestOTP = expressAsyncHandler(async (req, res, next) => {
 
 const authOTPVerify = expressAsyncHandler(async (req, res, next) => {
 	const { email, user_otp } = req.body;
+	if (!email) {
+		res.status(400).json({
+			message: 'Missing email',
+		});
+		return;
+	}
+	if (!user_otp) {
+		res.status(400).json({
+			message: 'Missing user OTP',
+		});
+		return;
+	}
 	const [requestedOTP] = await pool.query(
 		`SELECT otp, expires_in FROM forgot_password WHERE email = ?`,
 		[email]
@@ -157,6 +168,16 @@ const authResetPassword = expressAsyncHandler(async (req, res) => {
 //TODO: have to convert full_name to first_name and last_name
 const authRegister = expressAsyncHandler(async (req, res) => {
 	const { full_name, email } = req.body;
+	const [[user]] = await pool.query(
+		`SELECT email FROM users WHERE email = ?`,
+		[email]
+	);
+	if (user) {
+		res.status(403).json({
+			message: 'There is already an user by this email',
+		});
+		return;
+	}
 	let message = '';
 	const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 	if (typeof full_name !== 'string' || typeof email !== 'string') {
@@ -174,9 +195,13 @@ const authRegister = expressAsyncHandler(async (req, res) => {
 		});
 		return;
 	}
+	const [firstName, ...restName] = full_name.split(' ');
+	const lastName = restName.join(' ');
+	console.log(firstName);
+	console.log(lastName);
 	const [{ affectedRows, insertId }] = await pool.query(
-		`INSERT INTO users (first_name, email, password) VALUES (?, ?, ?)`,
-		[full_name, email, req.hash]
+		`INSERT INTO users (first_name, last_name, email, password) VALUES (?, ?, ?, ?)`,
+		[firstName, lastName, email, req.hash]
 	);
 	if (affectedRows === 0) throw new Error('Could not create user');
 	res.status(201).json({
@@ -353,7 +378,7 @@ const parentRegister = async (req, res, user_id) => {
 	}
 	children.forEach((child, index) => {
 		const { name, age, gender, sport_interest, sport_level } = child;
-		if (!name || !age || !gender || !sport_interest || sport_level) {
+		if (!name || !age || !gender || !sport_interest || !sport_level) {
 			res.status(400).json({
 				message: `Missing attributes in ${index + 1}th child`,
 			});
@@ -368,7 +393,7 @@ const parentRegister = async (req, res, user_id) => {
 			latitude = ?, 
 			longitude = ?
 		WHERE user_id = ?`,
-		['facilitator', latitude, longitude, user_id]
+		['parent', latitude, longitude, user_id]
 	);
 	if (updateStatus.affectedRows === 0) throw new Error('User update failed');
 	const [[parent]] = await pool.query(
@@ -559,6 +584,16 @@ const authChangeEmail = expressAsyncHandler(async (req, res) => {
 	if (!email) {
 		res.status(403).json({
 			message: 'Email is missing',
+		});
+		return;
+	}
+	const [[user]] = await pool.query(
+		`SELECT email FROM users WHERE email = ?`,
+		[email]
+	);
+	if (user) {
+		res.status(403).json({
+			message: 'Another user exists by this email',
 		});
 		return;
 	}
