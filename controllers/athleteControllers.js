@@ -337,7 +337,8 @@ const athleteUpcomingSessions = expressAsyncHandler(async (req, res) => {
 			fs.description,
 			fa.latitude,
 			fa.longitude,
-			fs.time
+			fs.start_time,
+			fs.end_time
 		FROM
 			facility_sessions fs
 		LEFT JOIN

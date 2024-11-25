@@ -165,7 +165,6 @@ const authResetPassword = expressAsyncHandler(async (req, res) => {
 	});
 });
 
-//TODO: have to convert full_name to first_name and last_name
 const authRegister = expressAsyncHandler(async (req, res) => {
 	const { full_name, email } = req.body;
 	const [[user]] = await pool.query(
@@ -197,8 +196,6 @@ const authRegister = expressAsyncHandler(async (req, res) => {
 	}
 	const [firstName, ...restName] = full_name.split(' ');
 	const lastName = restName.join(' ');
-	console.log(firstName);
-	console.log(lastName);
 	const [{ affectedRows, insertId }] = await pool.query(
 		`INSERT INTO users (first_name, last_name, email, password) VALUES (?, ?, ?, ?)`,
 		[firstName, lastName, email, req.hash]
@@ -433,7 +430,6 @@ const parentRegister = async (req, res, user_id) => {
 	});
 };
 
-//TODO: handle request if user tries to change user_type
 const specifiedRegister = expressAsyncHandler(async (req, res) => {
 	const { type } = req?.query;
 	const { user_id } = req?.params;
