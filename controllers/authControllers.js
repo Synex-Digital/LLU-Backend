@@ -60,7 +60,7 @@ const authLoginSuccess = expressAsyncHandler(async (req, res) => {
 	);
 	if (affectedRows === 0) throw new Error('Failed to create user');
 	res.status(201).json({
-		message: 'Insertion successful',
+		message: 'User created successful',
 	});
 });
 

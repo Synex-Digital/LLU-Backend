@@ -14,8 +14,8 @@ passport.use(
 			clientSecret: process.env.GOOGLE_CLIENT_SECRET,
 			callbackURL:
 				process.env.NODE_ENV === 'production'
-					? 'http://18.188.214.41:3000/auth/google/callback'
-					: 'http://localhost:8080/auth/google/callback',
+					? 'http://3.142.144.94:3000/auth/google/callback'
+					: 'http://3.142.144.94:3000/auth/google/callback',
 			passReqToCallback: true,
 		},
 		(request, accessToken, refreshToken, profile, done) => {
