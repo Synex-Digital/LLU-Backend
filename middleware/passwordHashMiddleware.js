@@ -5,7 +5,7 @@ const passwordHash = expressAsyncHandler(async (req, res, next) => {
 	const { password } = req.body;
 	if (!password) {
 		res.status(400).json({
-			message: 'Password is not present in the request',
+			message: 'Password is missing',
 		});
 		return;
 	}
@@ -16,6 +16,12 @@ const passwordHash = expressAsyncHandler(async (req, res, next) => {
 
 const passwordCompare = expressAsyncHandler(async (req, res, next) => {
 	const { password } = req.body;
+	if (!password) {
+		res.status(400).json({
+			message: 'Password is missing',
+		});
+		return;
+	}
 	req.verified = await bcrypt.compare(password, req.user.password);
 	next();
 });

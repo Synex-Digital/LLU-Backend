@@ -167,6 +167,18 @@ const authResetPassword = expressAsyncHandler(async (req, res) => {
 
 const authRegister = expressAsyncHandler(async (req, res) => {
 	const { full_name, email } = req.body;
+	if (!full_name) {
+		res.status(400).json({
+			message: 'Full name is missing',
+		});
+		return;
+	}
+	if (!email) {
+		res.status(400).json({
+			message: 'Email is missing',
+		});
+		return;
+	}
 	const [[user]] = await pool.query(
 		`SELECT email FROM users WHERE email = ?`,
 		[email]

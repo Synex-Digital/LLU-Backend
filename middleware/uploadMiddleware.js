@@ -32,9 +32,9 @@ const upload = multer({
 });
 
 const uploadFile = expressAsyncHandler(async (req, res, next) => {
-	upload.single('img')(req, res, function (err) {
+	upload.single('img')(req, res, (err) => {
 		if (err instanceof multer.MulterError)
-			throw new Error(`message: ${err.message}`);
+			throw new Error(`multer message: ${err.message}`);
 		else if (err) throw new Error(`message: ${err.message}`);
 		next();
 	});
@@ -52,8 +52,8 @@ const uploadToS3 = expressAsyncHandler(async (req, res, next) => {
 			fit: 'contain',
 		})
 		.toBuffer();
-
-	req.filePath = imageName;
+	const imageUrl = `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${imageName}`;
+	req.filePath = imageUrl;
 	await s3Client.send(
 		new PutObjectCommand({
 			Bucket: process.env.AWS_S3_BUCKET_NAME,
@@ -66,9 +66,9 @@ const uploadToS3 = expressAsyncHandler(async (req, res, next) => {
 });
 
 const uploadMultiple = expressAsyncHandler(async (req, res, next) => {
-	upload.array('img', 10)(req, res, function (err) {
+	upload.array('img', 10)(req, res, (err) => {
 		if (err instanceof multer.MulterError)
-			throw new Error(`message: ${err.message}`);
+			throw new Error(`multer message: ${err.message}`);
 		else if (err) throw new Error(`message: ${err.message}`);
 		next();
 	});
@@ -88,8 +88,8 @@ const uploadMultipleToS3 = expressAsyncHandler(async (req, res, next) => {
 					fit: 'contain',
 				})
 				.toBuffer();
-
-			filePaths.push(imageName);
+			const imageUrl = `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${imageName}`;
+			filePaths.push(imageUrl);
 			await s3Client.send(
 				new PutObjectCommand({
 					Bucket: process.env.AWS_S3_BUCKET_NAME,
