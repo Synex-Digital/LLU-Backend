@@ -12,6 +12,7 @@ import { facilitatorRouter } from './routes/facilitatorRoutes.js';
 import { userRouter } from './routes/userRoutes.js';
 import { socketInitialize } from './realtime/socket.js';
 import { exec } from 'child_process';
+import { trainerRouter } from './routes/trainerRoutes.js';
 
 dotenv.config();
 const app = express();
@@ -32,6 +33,7 @@ app.use(mailerMiddleware);
 app.use('/auth', authRouter);
 app.use('/api/athlete', athleteRouter);
 app.use('/api/facilitator', facilitatorRouter);
+app.use('/api/trainer', trainerRouter);
 app.use('/api/user', userRouter);
 
 //! remove after testing

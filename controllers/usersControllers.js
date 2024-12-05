@@ -768,6 +768,7 @@ const userAddComment = expressAsyncHandler(async (req, res) => {
 	});
 });
 
+//TODO have to handle self like feature
 const userLikeComment = expressAsyncHandler(async (req, res) => {
 	const { comment_id } = req.params;
 	if (!comment_id) {

@@ -36,6 +36,12 @@ const socketInitialize = (socket) => {
 	socket.on('send_img', async (img, data) => {
 		await uploadImage(img, data, socket);
 	});
+
+	socket.on('disconnect', (reason) => {
+		//TODO: update user socket id in database and broadcast when user disconnects
+
+		console.log(`User disconnected ${socket.id} due to ${reason}`);
+	});
 };
 
 export { socketInitialize };

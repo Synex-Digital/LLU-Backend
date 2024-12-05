@@ -67,8 +67,6 @@ const athleteTopTrainer = expressAsyncHandler(async (req, res, next) => {
 				POINT(u.longitude, u.latitude),
 				POINT(?, ?)
 			) <= 16093.4
-		AND 
-			rt.time >= NOW() - INTERVAL 1 WEEK
 		GROUP BY 
 			u.user_id
 		ORDER BY 

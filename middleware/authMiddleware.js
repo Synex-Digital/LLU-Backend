@@ -1,4 +1,3 @@
-import jwt from 'jsonwebtoken';
 import expressAsyncHandler from 'express-async-handler';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth2';
 import passport from 'passport';

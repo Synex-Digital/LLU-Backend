@@ -73,6 +73,49 @@ const trainerAvailability = expressAsyncHandler(async (req, res, next) => {
 	next();
 });
 
+const trainerAddAvailabilityHours = expressAsyncHandler(async (req, res) => {
+	const { trainer_id } = req.params;
+	const weekDays = [
+		'saturday',
+		'sunday',
+		'monday',
+		'tuesday',
+		'wednesday',
+		'thursday',
+		'friday',
+	];
+	const { availability_hours } = req.body;
+	if (!availability_hours || !Array.isArray(availability_hours)) {
+		res.status(400).json({
+			message: 'Invalid availability hours',
+		});
+		return;
+	}
+	let message = '';
+	availability_hours.forEach((availability, index) => {
+		const { week_day, available_hours } = availability;
+		if (!week_day || !available_hours) {
+			message += `Missing attribute in ${index + 1}\n`;
+		}
+		if (!weekDays.includes(week_day)) {
+			message += `Invalid week day in ${index + 1}\n`;
+		}
+	});
+	//TODO have to do logic for update
+	availability_hours.forEach(async (availability, index) => {
+		const { week_day, available_hours } = availability;
+		const [{ affectedRows }] = await pool.query(
+			`INSERT INTO trainer_availability_hours (week_day, available_hours, trainer_id) VALUES (?, ?, ?)`,
+			[week_day, available_hours, trainer_id]
+		);
+		if (affectedRows === 0)
+			throw new Error('Failed to add available hours');
+	});
+	res.status(201).json({
+		message: 'Successfully added available hours',
+	});
+});
+
 const trainerReviews = expressAsyncHandler(async (req, res) => {
 	const { trainer_id } = req.params;
 	if (!trainer_id) {
@@ -134,4 +177,5 @@ export {
 	trainerStatistics,
 	trainerAvailability,
 	trainerReviews,
+	trainerAddAvailabilityHours,
 };
