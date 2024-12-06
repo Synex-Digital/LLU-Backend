@@ -79,8 +79,8 @@ const userAddPost = expressAsyncHandler(async (req, res, next) => {
 
 const userAddPostImage = expressAsyncHandler(async (req, res, next) => {
 	const { post_id, filePaths } = req;
-	console.log(filePaths);
 	for (const path of filePaths) {
+		console.log(path);
 		const [{ affectedRows }] = await pool.query(
 			`INSERT INTO post_img (post_id, img) VALUES (?, ?)`,
 			[post_id, path]
@@ -113,6 +113,7 @@ const userReservePostForFollowers = expressAsyncHandler(async (req, res) => {
 		if (affectedRows === 0) throw new Error('Failed to add unseen posts');
 	}
 	res.status(200).json({
+		post_id: req.post_id,
 		message: 'Successfully added post',
 	});
 });
@@ -160,6 +161,7 @@ const userCommunity = expressAsyncHandler(async (req, res, next) => {
 		LIMIT ? OFFSET ?`,
 		[user_id, limit, offset]
 	);
+	console.log(posts);
 	if (posts.length === 0) {
 		next();
 		return;
@@ -195,7 +197,7 @@ const userRecommendedPost = expressAsyncHandler(async (req, res) => {
 			u.last_name,
 			u.img,
 			u.profile_picture,
-			GROUP_CONCAT(DISTINCT pi.img ORDER BY pi.img SEPARATOR ',') AS post_images,
+			GROUP_CONCAT(DISTINCT pi.img ORDER BY pi.img SEPARATOR ' , ') AS post_images,
 			p.time,
 			p.content,
 			COUNT(DISTINCT l.like_id) AS no_of_likes,
@@ -224,8 +226,9 @@ const userRecommendedPost = expressAsyncHandler(async (req, res) => {
 	);
 	const filteredRecommendedPosts = recommendedPosts.map((post) => ({
 		...post,
-		post_images: post.post_images ? post.post_images.split(',') : [],
+		post_images: post.post_images ? post.post_images.split(' , ') : [],
 	}));
+	console.log(filteredRecommendedPosts);
 	res.status(200).json({
 		page,
 		limit,
@@ -617,7 +620,9 @@ const userCreateChat = expressAsyncHandler(async (req, res) => {
 		return;
 	}
 	const salt = await bcrypt.genSalt(parseInt(process.env.SALT_ITR));
-	const room_id = await bcrypt.hash(user.user_id + '-' + user_id, salt);
+	const roomIdHash = await bcrypt.hash(user.user_id + '-' + user_id, salt);
+	const room_id = encodeURIComponent(roomIdHash);
+	console.log(room_id);
 	const [{ affectedRows }] = await pool.query(
 		`INSERT INTO chats (user_id, room_id, friend_user_id) VALUES (?, ?, ?)`,
 		[user.user_id, room_id, user_id]

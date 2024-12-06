@@ -80,7 +80,6 @@ const uploadMultipleToS3 = expressAsyncHandler(async (req, res, next) => {
 	await Promise.all(
 		req.files.map(async (file) => {
 			const imageName = generateRandomString();
-
 			const fileBuffer = await sharp(file.buffer)
 				.resize({
 					height: height || 1920,
@@ -101,6 +100,7 @@ const uploadMultipleToS3 = expressAsyncHandler(async (req, res, next) => {
 		})
 	);
 	req.filePaths = filePaths;
+	console.log(filePaths);
 	next();
 });
 
