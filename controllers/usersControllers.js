@@ -548,10 +548,12 @@ const userNormalChats = expressAsyncHandler(async (req, res) => {
 
 //TODO prevent other user from getting access to room id messages
 const userGetMessagesInChat = expressAsyncHandler(async (req, res) => {
+	//TODO have to fix get message
 	const { room_id } = req.params;
 	let { start_time, end_time } = req.query;
 	const startTime = new Date(start_time);
 	const endTime = new Date(end_time);
+	console.log('Message fetch');
 	if (startTime > endTime) {
 		res.status(400).json({
 			messages: 'Invalid date range',
@@ -587,6 +589,7 @@ const userGetMessagesInChat = expressAsyncHandler(async (req, res) => {
 			m.time DESC`,
 		[room_id, start_time, end_time]
 	);
+	console.log(messages);
 	res.status(200).json({
 		start_time,
 		end_time,

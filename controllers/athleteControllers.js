@@ -67,15 +67,18 @@ const athleteTopTrainer = expressAsyncHandler(async (req, res, next) => {
 				POINT(u.longitude, u.latitude),
 				POINT(?, ?)
 			) <= 16093.4
-		AND 
-			rt.time >= NOW() - INTERVAL 1 WEEK
 		GROUP BY 
 			u.user_id
 		ORDER BY 
-			average_rating DESC
+			rt.rating DESC
 		LIMIT ? OFFSET ?;`,
 		[longitude, latitude, limit, offset]
 	);
+	/**
+	 * AND 
+		rt.time >= NOW() - INTERVAL 1 WEEK
+	 */
+	console.log(topTrainer);
 	req.topTrainer = topTrainer;
 	next();
 });
@@ -98,9 +101,9 @@ const athleteNearbyFacilities = expressAsyncHandler(async (req, res, next) => {
 			AVG(rf.rating) AS avg_rating
 		FROM
 			facilities f
-		INNER JOIN
+		LEFT JOIN
 			facility_img fi ON f.facility_id = fi.facility_id
-		INNER JOIN
+		LEFT JOIN
 			review_facility rf ON f.facility_id = rf.facility_id
 		WHERE 
 			ST_Distance_Sphere(
