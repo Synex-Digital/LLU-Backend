@@ -285,10 +285,12 @@ const athleteFavoriteTrainer = expressAsyncHandler(async (req, res) => {
 		LIMIT ? OFFSET ?`,
 		[user_id, limit, offset]
 	);
-	if (favoriteTrainers.length === 0)
-		throw new Error(
-			'Currently there are no favorite trainers for this user'
-		);
+	if (favoriteTrainers.length === 0) {
+		res.status(404).json({
+			message: 'There is no favorite trainer for this athlete',
+		});
+		return;
+	}
 	res.status(200).json({
 		page,
 		limit,
