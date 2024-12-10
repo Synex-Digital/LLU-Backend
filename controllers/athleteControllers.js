@@ -78,7 +78,6 @@ const athleteTopTrainer = expressAsyncHandler(async (req, res, next) => {
 	 * AND 
 		rt.time >= NOW() - INTERVAL 1 WEEK
 	 */
-	console.log(topTrainer);
 	req.topTrainer = topTrainer;
 	next();
 });
@@ -98,7 +97,7 @@ const athleteNearbyFacilities = expressAsyncHandler(async (req, res, next) => {
 			f.latitude,
 			f.longitude,
 			fi.img,
-			AVG(rf.rating) AS avg_rating
+			AVG(COALESCE(rf.rating, 0)) AS avg_rating
 		FROM
 			facilities f
 		LEFT JOIN
@@ -115,7 +114,6 @@ const athleteNearbyFacilities = expressAsyncHandler(async (req, res, next) => {
 		LIMIT ? OFFSET ?;`,
 		[longitude, latitude, limit, offset]
 	);
-	console.log(nearbyFacilities);
 	req.nearbyFacilities = nearbyFacilities;
 	next();
 });
@@ -247,8 +245,12 @@ const athleteFilterTrainer = expressAsyncHandler(async (req, res) => {
 			offset,
 		]
 	);
-	if (filteredTrainer.length === 0)
-		throw new Error('Currently there are no trainers in range');
+	if (filteredTrainer.length === 0) {
+		res.status(404).json({
+			message: 'There are no trainers by this filter',
+		});
+		return;
+	}
 	res.status(200).json({
 		page,
 		limit,
