@@ -298,6 +298,25 @@ const athleteFavoriteTrainer = expressAsyncHandler(async (req, res) => {
 	});
 });
 
+const athleteAddFavoriteTrainer = expressAsyncHandler(async (req, res) => {
+	const { trainer_id } = req.params;
+	const { user_id } = req.user;
+	if (!trainer_id) {
+		res.status(400).json({
+			message: 'Trainer id is missing',
+		});
+		return;
+	}
+	const [{ affectedRows }] = await pool.query(
+		`INSERT INTO favorite_trainer (user_id, trainer_id) VALUES (?, ?)`,
+		[user_id, trainer_id]
+	);
+	if (affectedRows === 0) throw new Error('Failed to add favorite trainer');
+	res.status(200).json({
+		message: 'Successfully added favorite trainer',
+	});
+});
+
 //TODO have to handle favorite duplication
 const athleteRemoveFavoriteTrainer = expressAsyncHandler(async (req, res) => {
 	const { user_id } = req.user;
@@ -374,4 +393,5 @@ export {
 	athleteFeaturedTrainer,
 	athleteTopTrainer,
 	athleteNearbyFacilities,
+	athleteAddFavoriteTrainer,
 };

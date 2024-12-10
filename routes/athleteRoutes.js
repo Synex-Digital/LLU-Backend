@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { protect } from '../middleware/authMiddleware.js';
 import {
+	athleteAddFavoriteTrainer,
 	athleteCheck,
 	athleteFavoriteTrainer,
 	athleteFeaturedTrainer,
@@ -13,6 +14,7 @@ import {
 	athleteUpcomingSessions,
 } from '../controllers/athleteControllers.js';
 import {
+	trainerAddAvailabilityHours,
 	trainerAvailability,
 	trainerProfile,
 	trainerReviews,
@@ -47,6 +49,10 @@ athleteRouter
 athleteRouter
 	.route('/favorites')
 	.get(protect, athleteCheck, athleteFavoriteTrainer);
+
+athleteRouter
+	.route('/add_favorite/:trainer_id')
+	.get(protect, athleteAddFavoriteTrainer);
 
 //TODO have to include facility favorite
 athleteRouter
