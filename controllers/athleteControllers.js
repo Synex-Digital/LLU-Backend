@@ -307,6 +307,17 @@ const athleteAddFavoriteTrainer = expressAsyncHandler(async (req, res) => {
 		});
 		return;
 	}
+	const [[trainerAvailable]] = await pool.query(
+		`SELECT * FROM trainers WHERE trainer_id = ?`,
+		[trainer_id]
+	);
+	console.log(trainerAvailable);
+	if (!trainerAvailable) {
+		res.status(400).json({
+			message: 'There is no trainer by trainer_id',
+		});
+		return;
+	}
 	const [{ affectedRows }] = await pool.query(
 		`INSERT INTO favorite_trainer (user_id, trainer_id) VALUES (?, ?)`,
 		[user_id, trainer_id]
