@@ -30,7 +30,12 @@ const trainerProfile = expressAsyncHandler(async (req, res, next) => {
 		`,
 		[trainer_id]
 	);
-	if (!trainer) throw new Error('There are no trainers by this id');
+	if (!trainer) {
+		res.status(404).json({
+			message: 'There is no trainer by this trainer_id',
+		});
+		return;
+	}
 	req.trainerProfile = trainer;
 	next();
 });
