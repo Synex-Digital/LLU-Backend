@@ -56,7 +56,7 @@ athleteRouter
 
 //TODO have to include facility favorite
 athleteRouter
-	.route('remove_favorite_trainer/:trainer_id')
+	.route('/remove_favorite_trainer/:trainer_id')
 	.delete(protect, athleteCheck, athleteRemoveFavoriteTrainer);
 
 athleteRouter

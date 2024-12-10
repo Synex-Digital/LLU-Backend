@@ -338,6 +338,16 @@ const athleteRemoveFavoriteTrainer = expressAsyncHandler(async (req, res) => {
 		});
 		return;
 	}
+	const [[trainerAvailable]] = await pool.query(
+		`SELECT * FROM trainers WHERE trainer_id = ?`,
+		[trainer_id]
+	);
+	if (!trainerAvailable) {
+		res.status(400).json({
+			message: 'There is no trainer by this trainer_id',
+		});
+		return;
+	}
 	const [{ affectedRows }] = await pool.query(
 		`DELETE FROM favorite_trainer WHERE user_id = ? AND trainer_id = ?;`,
 		[user_id, trainer_id]
