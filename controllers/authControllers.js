@@ -443,8 +443,7 @@ const parentRegister = async (req, res, user_id) => {
 };
 
 const specifiedRegister = expressAsyncHandler(async (req, res) => {
-	const { type } = req?.query;
-	const { user_id } = req?.params;
+	const { type, user_id } = req.body;
 	if (!type || !user_id) {
 		res.status(400).json({
 			message: 'Missing type or user_id',

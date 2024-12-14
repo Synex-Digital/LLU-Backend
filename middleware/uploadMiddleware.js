@@ -100,7 +100,6 @@ const uploadMultipleToS3 = expressAsyncHandler(async (req, res, next) => {
 		})
 	);
 	req.filePaths = filePaths;
-	console.log(filePaths);
 	next();
 });
 

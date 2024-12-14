@@ -56,6 +56,6 @@ authRouter
 	.route('/reset_password')
 	.post(authOTPVerify, passwordHash, authResetPassword);
 
-authRouter.route('/register_special_user/:user_id').post(specifiedRegister);
+authRouter.route('/register_special_user').post(specifiedRegister);
 
 export { authRouter };

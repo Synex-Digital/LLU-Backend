@@ -15,6 +15,7 @@ import {
 	facilitatorFetch,
 	facilitatorGetNearbyTrainer,
 	facilitatorOngoingSessions,
+	facilitatorProfileCompletion,
 	facilitatorUpcomingSessions,
 	facilityAvailableHours,
 	facilityBasicDetails,
@@ -58,8 +59,8 @@ facilitatorRouter
 	);
 
 facilitatorRouter
-	.route('/sessions/:session_id')
-	.get(
+	.route('/session_details')
+	.post(
 		protect,
 		facilitatorCheck,
 		facilitySessionDetails,
@@ -72,14 +73,15 @@ facilitatorRouter
 		protect,
 		facilitatorCheck,
 		facilityDetails,
+		facilitatorProfileCompletion,
 		athleteFeaturedTrainer,
 		facilityList,
 		facilitatorAllReview
 	);
 
 facilitatorRouter
-	.route('/facility/:facility_id')
-	.get(
+	.route('/facility')
+	.post(
 		protect,
 		facilitatorCheck,
 		facilityBasicDetails,
@@ -101,7 +103,7 @@ facilitatorRouter
 	.patch(protect, facilitatorCheck, facilitatorFetch, facilitatorEdit);
 
 facilitatorRouter
-	.route('/:facilitator_id/add_facility')
+	.route('/add_facility')
 	.post(
 		protect,
 		facilitatorCheck,
@@ -111,11 +113,11 @@ facilitatorRouter
 	);
 
 facilitatorRouter
-	.route('/:facilitator_id/employees')
-	.get(protect, facilitatorCheck, facilitatorEmployees);
+	.route('/employees')
+	.post(protect, facilitatorCheck, facilitatorEmployees);
 
 facilitatorRouter
-	.route('/:facilitator_id/add_employee/:trainer_id')
+	.route('/add_employee')
 	.post(protect, facilitatorCheck, facilitatorAddEmployee);
 
 facilitatorRouter
@@ -123,7 +125,7 @@ facilitatorRouter
 	.post(protect, facilitatorCheck, facilitatorGetNearbyTrainer);
 
 facilitatorRouter
-	.route('/:facility_id/add_img')
+	.route('/add_img')
 	.post(
 		protect,
 		facilitatorCheck,
@@ -133,11 +135,11 @@ facilitatorRouter
 	);
 
 facilitatorRouter
-	.route('/:facility_id/add_review')
+	.route('/add_review')
 	.post(protect, facilityReviewerCheck, facilityReview);
 
 facilitatorRouter
-	.route('/delete_img/:facility_img_id')
+	.route('/delete_img')
 	.delete(
 		protect,
 		facilitatorCheck,

@@ -16,6 +16,10 @@ const athleteFeaturedTrainer = expressAsyncHandler(async (req, res, next) => {
 	const [featuredTrainer] = await pool.query(
 		`SELECT
 			t.trainer_id,
+			u.profile_picture,
+			u.img,
+			u.first_name,
+			u.last_name,
 			t.specialization,
 			t.specialization_level,
 			t.hourly_rate,

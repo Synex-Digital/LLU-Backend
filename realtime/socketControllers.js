@@ -35,7 +35,6 @@ const connectUser = async (data, socket) => {
 		});
 		return;
 	}
-	console.log('connected');
 };
 
 const disconnectUser = async (data, socket) => {
@@ -63,7 +62,6 @@ const disconnectUser = async (data, socket) => {
 		});
 		return;
 	}
-	console.log('disconnected');
 };
 
 const joinChat = async (data, socket) => {

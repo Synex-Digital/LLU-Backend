@@ -1,6 +1,7 @@
 import expressAsyncHandler from 'express-async-handler';
 import { pool } from '../config/db.js';
 import bcrypt from 'bcryptjs';
+import { generateRandomString } from '../utilities/generateRandomString.js';
 
 const userAddReview = expressAsyncHandler(async (req, res) => {
 	const { trainer_id } = req.params;
@@ -548,12 +549,12 @@ const userNormalChats = expressAsyncHandler(async (req, res) => {
 
 //TODO prevent other user from getting access to room id messages
 const userGetMessagesInChat = expressAsyncHandler(async (req, res) => {
-	//TODO have to fix get message
 	const { room_id } = req.params;
 	let { start_time, end_time } = req.query;
 	const startTime = new Date(start_time);
 	const endTime = new Date(end_time);
-	console.log('Message fetch');
+	console.log(room_id);
+	console.log(startTime, endTime);
 	if (startTime > endTime) {
 		res.status(400).json({
 			messages: 'Invalid date range',
@@ -584,12 +585,12 @@ const userGetMessagesInChat = expressAsyncHandler(async (req, res) => {
 			users u ON u.user_id = c.user_id
 		WHERE
 			c.room_id = ?
-			AND m.time BETWEEN ? AND ?
+		AND
+			m.time BETWEEN ? AND ?
 		ORDER BY
 			m.time DESC`,
 		[room_id, start_time, end_time]
 	);
-	console.log(messages);
 	res.status(200).json({
 		start_time,
 		end_time,
@@ -622,18 +623,15 @@ const userCreateChat = expressAsyncHandler(async (req, res) => {
 		});
 		return;
 	}
-	const salt = await bcrypt.genSalt(parseInt(process.env.SALT_ITR));
-	const roomIdHash = await bcrypt.hash(user.user_id + '-' + user_id, salt);
-	const room_id = encodeURIComponent(roomIdHash);
-	console.log(room_id);
+	const roomId = generateRandomString(16);
 	const [{ affectedRows }] = await pool.query(
 		`INSERT INTO chats (user_id, room_id, friend_user_id) VALUES (?, ?, ?)`,
-		[user.user_id, room_id, user_id]
+		[user.user_id, roomId, user_id]
 	);
 	if (affectedRows === 0) throw new Error('Failed to create chat');
 	const [insertStatus] = await pool.query(
 		`INSERT INTO chats (user_id, room_id, friend_user_id) VALUES (?, ?, ?)`,
-		[user_id, room_id, user.user_id]
+		[user_id, roomId, user.user_id]
 	);
 	if (insertStatus.affectedRows === 0)
 		throw new Error('Failed to create chat');
@@ -795,6 +793,23 @@ const userLikeComment = expressAsyncHandler(async (req, res) => {
 	});
 });
 
+const userGetNotifications = expressAsyncHandler(async (req, res) => {
+	const { user_id } = req.user;
+	let { page, limit } = req.query;
+	page = parseInt(page) || 1;
+	limit = parseInt(limit) || 10;
+	const offset = (page - 1) * limit;
+	const [notifications] = await pool.query(
+		`SELECT * FROM notifications WHERE user_id = ? LIMIT ? OFFSET ?`,
+		[user_id, limit, offset]
+	);
+	res.status(200).json({
+		page,
+		limit,
+		data: notifications,
+	});
+});
+
 export {
 	userAddReview,
 	userAddReviewImg,
@@ -817,4 +832,5 @@ export {
 	userFollow,
 	userAddComment,
 	userLikeComment,
+	userGetNotifications,
 };

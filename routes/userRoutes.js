@@ -20,6 +20,7 @@ import {
 	userFollow,
 	userAddComment,
 	userLikeComment,
+	userGetNotifications,
 } from '../controllers/usersControllers.js';
 import {
 	uploadMultiple,
@@ -66,5 +67,7 @@ userRouter.route('/follow/:user_id').get(protect, userFollow);
 userRouter.route('/comment/:post_id').post(protect, userAddComment);
 
 userRouter.route('/like_comment/:comment_id').get(protect, userLikeComment);
+
+userRouter.route('/notifications').get(protect, userGetNotifications);
 
 export { userRouter };

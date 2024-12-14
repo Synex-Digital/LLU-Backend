@@ -32,8 +32,8 @@ const facilitatorAddFacility = expressAsyncHandler(async (req, res, next) => {
 		capacity,
 		established_in,
 		available_hours,
+		facilitator_id,
 	} = req.body;
-	const { facilitator_id } = req.params;
 	if (!facilitator_id) {
 		res.status(400).json({
 			message: 'facilitator id is missing in the url',
@@ -66,7 +66,7 @@ const facilitatorAddFacility = expressAsyncHandler(async (req, res, next) => {
 });
 
 const facilitatorFacilityImage = expressAsyncHandler(async (req, res) => {
-	const { facility_id } = req.params;
+	const { facility_id } = req.body;
 	const { filePaths } = req;
 	if (!facility_id) {
 		res.status(400).json({
@@ -125,7 +125,7 @@ const facilitatorAddAmenities = expressAsyncHandler(async (req, res) => {
 
 const facilityReview = expressAsyncHandler(async (req, res) => {
 	const { user_id } = req.user;
-	const { facility_id } = req.params;
+	const { facility_id } = req.body;
 	if (!facility_id) {
 		res.status(400).json({
 			message: 'facility id is missing in url',
@@ -137,8 +137,12 @@ const facilityReview = expressAsyncHandler(async (req, res) => {
 		`SELECT * FROM review_facility WHERE user_id = ? AND facility_id = ?`,
 		[user_id, facility_id]
 	);
-	if (available)
-		throw new Error('User already added review of mentioned facility');
+	if (available) {
+		res.status(403).json({
+			message: 'User already added review of mentioned facility',
+		});
+		return;
+	}
 	const [{ affectedRows }] = await pool.query(
 		`INSERT INTO review_facility (user_id, rating, facility_id, content) VALUES (?, ?, ?, ?);`,
 		[user_id, rating, facility_id, content]
@@ -328,7 +332,7 @@ const facilitatorCompletedSessions = expressAsyncHandler(
 );
 
 const facilitySessionDetails = expressAsyncHandler(async (req, res, next) => {
-	const { session_id } = req.params;
+	const { session_id } = req.body;
 	const [[sessionDetails]] = await pool.query(
 		`SELECT
 			fs.facility_sessions_id,
@@ -365,7 +369,7 @@ const facilitySessionDetails = expressAsyncHandler(async (req, res, next) => {
 });
 
 const facilitySessionTrainer = expressAsyncHandler(async (req, res) => {
-	const { session_id } = req.params;
+	const { session_id } = req.body;
 	const [[sessionTrainer]] = await pool.query(
 		`SELECT
 			u.first_name,
@@ -425,6 +429,36 @@ const facilityDetails = expressAsyncHandler(async (req, res, next) => {
 	next();
 });
 
+const facilitatorProfileCompletion = expressAsyncHandler(
+	async (req, res, next) => {
+		const {
+			user_id,
+			socket_id,
+			google_id,
+			level,
+			type,
+			email,
+			password,
+			phone,
+			no_of_sessions,
+			short_description,
+			...filteredUser
+		} = req.user;
+		console.log(filteredUser);
+		let totalEmpty = 0;
+		const [[{ no_of_professionals }]] = await pool.query(
+			`SELECT no_of_professionals FROM facilitators`
+		);
+		for (const [key, value] of Object.entries(filteredUser)) {
+			if (!value) totalEmpty++;
+		}
+		if (!no_of_professionals) totalEmpty++;
+		totalEmpty = 100 - (totalEmpty / 6) * 100;
+		req.profileCompletion = parseFloat(totalEmpty.toFixed(2));
+		next();
+	}
+);
+
 const facilityList = expressAsyncHandler(async (req, res, next) => {
 	let { page, limit } = req.query;
 	page = parseInt(page) || 1;
@@ -480,6 +514,7 @@ const facilitatorAllReview = expressAsyncHandler(async (req, res) => {
 		limit,
 		data: {
 			basicInfo: req.basicInfo,
+			profileCompletion: req.profileCompletion,
 			facilityList: req.facilityNameList,
 			trainers: req.featuredTrainer,
 			reviews: facilitatorReviews,
@@ -488,7 +523,7 @@ const facilitatorAllReview = expressAsyncHandler(async (req, res) => {
 });
 
 const facilityAvailableHours = expressAsyncHandler(async (req, res, next) => {
-	const { facility_id } = req.params;
+	const { facility_id } = req.body;
 	const [availableHours] = await pool.query(
 		`SELECT
 			fah.week_day,
@@ -505,7 +540,7 @@ const facilityAvailableHours = expressAsyncHandler(async (req, res, next) => {
 
 //TODO have to verify all the params for SQL injection
 const facilityBasicDetails = expressAsyncHandler(async (req, res, next) => {
-	const { facility_id } = req.params;
+	const { facility_id } = req.body;
 	if (!facility_id) {
 		res.status(400).json({
 			message: 'facility id is missing in the url',
@@ -527,7 +562,12 @@ const facilityBasicDetails = expressAsyncHandler(async (req, res, next) => {
 			facility_id = ?`,
 		[facility_id]
 	);
-	if (!facilityDetails) throw new Error('There is no facility by this id');
+	if (!facilityDetails) {
+		res.status(404).json({
+			message: 'Invalid facility id',
+		});
+		return;
+	}
 	req.facilityDetails = facilityDetails;
 	next();
 });
@@ -538,7 +578,7 @@ const facilityGallery = expressAsyncHandler(async (req, res, next) => {
 	page = parseInt(page) || 1;
 	limit = parseInt(limit) || 5;
 	const offset = (page - 1) * limit;
-	const { facility_id } = req.params;
+	const { facility_id } = req.body;
 	const [gallery] = await pool.query(
 		`SELECT
 			fi.facility_img_id,
@@ -550,7 +590,6 @@ const facilityGallery = expressAsyncHandler(async (req, res, next) => {
 		LIMIT ? OFFSET ?`,
 		[facility_id, limit, offset]
 	);
-	console.log(gallery);
 	req.gallery = gallery;
 	next();
 });
@@ -560,7 +599,7 @@ const facilityReviews = expressAsyncHandler(async (req, res) => {
 	page = parseInt(page) || 1;
 	limit = parseInt(limit) || 10;
 	const offset = (page - 1) * limit;
-	const { facility_id } = req.params;
+	const { facility_id } = req.body;
 	const [reviews] = await pool.query(
 		`SELECT
 			u.first_name,
@@ -684,7 +723,7 @@ const facilitatorEdit = expressAsyncHandler(async (req, res) => {
 });
 
 const facilityEdit = expressAsyncHandler(async (req, res) => {
-	const { facility_id } = req.params;
+	const { facility_id } = req.body;
 	const {
 		name,
 		hourly_rate,
@@ -800,7 +839,7 @@ const facilitatorGetNearbyTrainer = expressAsyncHandler(async (req, res) => {
 
 //TODO have to inspect if trainer has the option to reject
 const facilitatorAddEmployee = expressAsyncHandler(async (req, res) => {
-	const { facilitator_id, trainer_id } = req.params;
+	const { facilitator_id, trainer_id } = req.body;
 	if (!facilitator_id || !trainer_id) {
 		res.status(400).json({
 			message: 'facilitator or trainer id is missing in the url',
@@ -839,7 +878,7 @@ const facilitatorAddEmployee = expressAsyncHandler(async (req, res) => {
 });
 
 const facilitatorEmployees = expressAsyncHandler(async (req, res) => {
-	const { facilitator_id } = req.params;
+	const { facilitator_id } = req.body;
 	if (!facilitator_id) {
 		res.status(400).json({
 			message: 'Facilitator id is missing in the url',
@@ -901,7 +940,7 @@ const facilitatorAssignEmployee = expressAsyncHandler(
 
 const facilitatorDeleteFacilityImage = expressAsyncHandler(
 	async (req, res, next) => {
-		const { facility_img_id } = req.params;
+		const { facility_img_id } = req.body;
 		if (!facility_img_id) {
 			res.status(400).json({
 				message: 'Facility img id is missing in the url',
@@ -958,4 +997,5 @@ export {
 	facilitatorEmployees,
 	facilitatorAssignEmployee,
 	facilitatorDeleteFacilityImage,
+	facilitatorProfileCompletion,
 };
