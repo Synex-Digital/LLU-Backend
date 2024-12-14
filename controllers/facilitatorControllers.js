@@ -635,8 +635,10 @@ const facilityReviews = expressAsyncHandler(async (req, res) => {
 const facilitatorDetails = expressAsyncHandler(async (req, res) => {
 	const { page, limit } = req.query;
 	const facilitator_id = req.facilitator_id;
+	console.log(facilitator_id);
 	const [facilitatorInfo] = await pool.query(
 		`SELECT
+			f.facilitator_id,
 			u.first_name,
 			u.last_name,
 			f.no_of_professionals,
@@ -649,7 +651,10 @@ const facilitatorDetails = expressAsyncHandler(async (req, res) => {
 		LEFT JOIN
 			facilities fa ON fa.facilitator_id = f.facilitator_id
 		WHERE
-			f.facilitator_id = ?`,
+			f.facilitator_id = ?
+		GROUP BY
+			u.user_id,
+			f.facilitator_id`,
 		[facilitator_id]
 	);
 	res.status(200).json({
