@@ -1041,6 +1041,18 @@ const facilitatorAssignEmployee = expressAsyncHandler(
 			});
 			return;
 		}
+		for (const employee_id of employees) {
+			const [[employee]] = await pool.query(
+				`SELECT * FROM facilitator_employees WHERE trainer_id = ?`,
+				[employee_id]
+			);
+			if (!employee) {
+				res.status(400).json({
+					message: `${employee_id} is not an employee of this user`,
+				});
+				return;
+			}
+		}
 		//TODO have to ensure that the sent employees are present in facilitator_employees
 		for (const employee_id of employees) {
 			const [{ affectedRows }] = await pool.query(
