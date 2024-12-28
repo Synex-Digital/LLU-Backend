@@ -553,8 +553,7 @@ const userGetMessagesInChat = expressAsyncHandler(async (req, res) => {
 	let { start_time, end_time } = req.query;
 	const startTime = new Date(start_time);
 	const endTime = new Date(end_time);
-	console.log(room_id);
-	console.log(startTime, endTime);
+
 	if (startTime > endTime) {
 		res.status(400).json({
 			messages: 'Invalid date range',
@@ -563,6 +562,13 @@ const userGetMessagesInChat = expressAsyncHandler(async (req, res) => {
 	}
 	start_time += ' 00:00:00';
 	end_time += ' 23:59:59';
+	//TODO have to include validation for start_time and end_time
+	// if (!validateTimeStamp(start_time) || !validateTimeStamp(end_time)) {
+	// 	res.status(400).json({
+	// 		message: 'Invalid start_time or end_time format',
+	// 	});
+	// 	return;
+	// }
 	if (!room_id) {
 		res.status(400).json({
 			message: 'Chat id is missing the url',

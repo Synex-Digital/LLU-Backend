@@ -44,11 +44,11 @@ const uploadToS3 = expressAsyncHandler(async (req, res, next) => {
 	const file = req.file;
 	const { height, width } = req.body;
 	const imageName = generateRandomString();
-
+	const imageMetaData = await sharp(file.buffer).metadata();
 	const fileBuffer = await sharp(file.buffer)
 		.resize({
-			height: height || 1920,
-			width: width || 1080,
+			height: height || imageMetaData.height,
+			width: width || imageMetaData.width,
 			fit: 'contain',
 		})
 		.toBuffer();
@@ -80,10 +80,11 @@ const uploadMultipleToS3 = expressAsyncHandler(async (req, res, next) => {
 	await Promise.all(
 		req.files.map(async (file) => {
 			const imageName = generateRandomString();
+			const imageMetaData = await sharp(file.buffer).metadata();
 			const fileBuffer = await sharp(file.buffer)
 				.resize({
-					height: height || 1920,
-					width: width || 1080,
+					height: height || imageMetaData.height,
+					width: width || imageMetaData.width,
 					fit: 'contain',
 				})
 				.toBuffer();

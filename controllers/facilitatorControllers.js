@@ -1,14 +1,26 @@
 import expressAsyncHandler from 'express-async-handler';
 import { pool } from '../config/db.js';
+import { validateTimeStamp } from '../utilities/DateValidation.js';
 
-const facilitatorCheck = expressAsyncHandler((req, res, next) => {
-	const { type } = req.user;
+const facilitatorCheck = expressAsyncHandler(async (req, res, next) => {
+	const { type, user_id } = req.user;
 	if (type !== 'facilitator') {
 		res.status(403).json({
 			message: 'Not a valid user of facilitator type',
 		});
 		return;
 	}
+	const [[facilitator]] = await pool.query(
+		`SELECT * FROM facilitators WHERE user_id = ?`,
+		[user_id]
+	);
+	if (!facilitator) {
+		res.status(403).json({
+			message: 'Not a valid user of facilitator type',
+		});
+		return;
+	}
+	req.facilitator = facilitator;
 	next();
 });
 
@@ -24,6 +36,7 @@ const facilityReviewerCheck = expressAsyncHandler((req, res, next) => {
 });
 
 const facilitatorAddFacility = expressAsyncHandler(async (req, res, next) => {
+	const connection = await pool.getConnection();
 	const {
 		hourly_rate,
 		name,
@@ -32,15 +45,10 @@ const facilitatorAddFacility = expressAsyncHandler(async (req, res, next) => {
 		capacity,
 		established_in,
 		available_hours,
-		facilitator_id,
 	} = req.body;
-	if (!facilitator_id) {
-		res.status(400).json({
-			message: 'facilitator id is missing in the url',
-		});
-		return;
-	}
-	const [{ insertId, affectedRows }] = await pool.query(
+	const { facilitator_id } = req.facilitator;
+	await connection.beginTransaction();
+	const [{ insertId, affectedRows }] = await connection.query(
 		`INSERT INTO facilities (facilitator_id, hourly_rate, name, latitude, longitude, capacity, established_in) VALUES (?, ?, ?, ?, ?, ?, ?);`,
 		[
 			facilitator_id,
@@ -52,15 +60,52 @@ const facilitatorAddFacility = expressAsyncHandler(async (req, res, next) => {
 			established_in,
 		]
 	);
-	if (affectedRows === 0) throw new Error('Failed to create facility');
-	for (const [weekday, hours] of Object.entries(available_hours)) {
-		const [insertStatus] = await pool.query(
-			`INSERT INTO facility_availability_hours (facility_id, week_day, available_hours) VALUES (?, ?, ?)`,
-			[insertId, weekday, hours]
-		);
-		if (insertStatus.affectedRows === 0)
-			throw new Error('Failed to insert available hours');
+	if (affectedRows === 0) {
+		await connection.rollback();
+		throw new Error('Failed to create facility');
 	}
+
+	for (const [index, day] of available_hours.entries()) {
+		const { week_day, start_time, end_time, available } = day;
+		if (!validateTimeStamp(start_time) || !validateTimeStamp(end_time)) {
+			await connection.rollback();
+			connection.release();
+			res.status(400).json({
+				message: `Invalid start_time or end_time format at ${week_day}`,
+			});
+			return;
+		}
+		const startTime = new Date(start_time);
+		const endTime = new Date(end_time);
+		if (startTime > endTime) {
+			await connection.rollback();
+			connection.release();
+			res.status(400).json({
+				message: `start_time can not be smaller than end_time at ${week_day}`,
+			});
+			return;
+		}
+		if (available !== 0 && available !== 1) {
+			await connection.rollback();
+			connection.release();
+			res.status(400).json({
+				message: `Invalid available format at ${week_day}`,
+			});
+			return;
+		}
+		console.log({ week_day, start_time, end_time, available });
+		const [insertStatus] = await connection.query(
+			`INSERT INTO facility_availability_hours (facility_id, week_day, start_time, end_time, available) VALUES (?, ?, ?, ?, ?)`,
+			[insertId, week_day, start_time, end_time, available]
+		);
+		if (insertStatus.affectedRows === 0) {
+			await connection.rollback();
+			connection.release();
+			throw new Error('Failed to insert available hours');
+		}
+	}
+	await connection.commit();
+	connection.release();
 	req.facility_id = insertId;
 	next();
 });
@@ -360,7 +405,7 @@ const facilitySessionDetails = expressAsyncHandler(async (req, res, next) => {
 	);
 	if (!sessionDetails) {
 		res.status(400).json({
-			message: 'There is not session by this ID',
+			message: 'There is no session by this ID',
 		});
 		return;
 	}
@@ -527,7 +572,9 @@ const facilityAvailableHours = expressAsyncHandler(async (req, res, next) => {
 	const [availableHours] = await pool.query(
 		`SELECT
 			fah.week_day,
-			fah.available_hours
+			fah.start_time,
+			fah.end_time,
+			fah.available
 		FROM
 			facility_availability_hours fah
 		WHERE
@@ -544,6 +591,17 @@ const facilityBasicDetails = expressAsyncHandler(async (req, res, next) => {
 	if (!facility_id) {
 		res.status(400).json({
 			message: 'facility id is missing in the url',
+		});
+		return;
+	}
+	const { facilitator_id } = req.facilitator;
+	const [[availableFacility]] = await pool.query(
+		`SELECT * FROM facilities WHERE facility_id = ? AND facilitator_id = ?`,
+		[facility_id, facilitator_id]
+	);
+	if (!availableFacility) {
+		res.status(403).json({
+			message: 'The facility_id for this user does not exist',
 		});
 		return;
 	}
@@ -635,7 +693,6 @@ const facilityReviews = expressAsyncHandler(async (req, res) => {
 const facilitatorDetails = expressAsyncHandler(async (req, res) => {
 	const { page, limit } = req.query;
 	const facilitator_id = req.facilitator_id;
-	console.log(facilitator_id);
 	const [facilitatorInfo] = await pool.query(
 		`SELECT
 			f.facilitator_id,
@@ -729,6 +786,7 @@ const facilitatorEdit = expressAsyncHandler(async (req, res) => {
 
 const facilityEdit = expressAsyncHandler(async (req, res) => {
 	const { facility_id } = req.body;
+	const connection = await pool.getConnection();
 	const {
 		name,
 		hourly_rate,
@@ -751,7 +809,20 @@ const facilityEdit = expressAsyncHandler(async (req, res) => {
 		});
 		return;
 	}
-	const [updateFacility] = await pool.query(
+	connection.beginTransaction();
+	const [availableFacilities] = await connection.query(
+		`SELECT * from facilities WHERE facility_id = ?`,
+		[facility_id]
+	);
+	if (!availableFacilities) {
+		await connection.rollback();
+		connection.release();
+		res.status(404).json({
+			message: 'Invalid facility_id',
+		});
+		return;
+	}
+	const [updateFacility] = await connection.query(
 		`UPDATE
 			facilities
 		SET
@@ -773,24 +844,62 @@ const facilityEdit = expressAsyncHandler(async (req, res) => {
 			facility_id,
 		]
 	);
-	if (updateFacility.affectedRows === 0)
+	if (updateFacility.affectedRows === 0) {
+		await connection.rollback();
+		connection.release();
 		throw new Error('Failed to update facility');
-	//TODO have to include array of allowed weeks to prevent SQL injection
-	for (const [weekday, hours] of Object.entries(available_hours)) {
-		const [{ affectedRows }] = await pool.query(
+	}
+	//TODO have to include array of allowed weeks to prevent SQL injection and all the weekdays are proper
+	for (const [index, day] of available_hours.entries()) {
+		const { week_day, start_time, end_time, available } = day;
+		if (!validateTimeStamp(start_time) || !validateTimeStamp(end_time)) {
+			await connection.rollback();
+			connection.release();
+			res.status(400).json({
+				message: `Invalid start_time or end_time format at ${week_day}`,
+			});
+			return;
+		}
+		const startTime = new Date(start_time);
+		const endTime = new Date(end_time);
+		if (startTime > endTime) {
+			await connection.rollback();
+			connection.release();
+			res.status(400).json({
+				message: `start_time can not be smaller than end_time at ${week_day}`,
+			});
+			return;
+		}
+		if (available !== 0 && available !== 1) {
+			await connection.rollback();
+			connection.release();
+			res.status(400).json({
+				message: `Invalid available format at ${index + 1}`,
+			});
+			return;
+		}
+		console.log({ week_day, start_time, end_time, available });
+		const [{ affectedRows }] = await connection.query(
 			`UPDATE
 				facility_availability_hours
 			SET
-				available_hours = ?
+				start_time = ?,
+				end_time = ?,
+				available = ?
 			WHERE
 				week_day = ?
 			AND
 				facility_id = ?`,
-			[hours, weekday, facility_id]
+			[start_time, end_time, available, week_day, facility_id]
 		);
-		if (affectedRows === 0)
+		if (affectedRows === 0) {
+			await connection.rollback();
+			connection.release();
 			throw new Error('Failed to update facility dates');
+		}
 	}
+	await connection.commit();
+	connection.release();
 	res.status(200).json({
 		message: 'Successfully updated facility',
 	});
@@ -844,7 +953,8 @@ const facilitatorGetNearbyTrainer = expressAsyncHandler(async (req, res) => {
 
 //TODO have to inspect if trainer has the option to reject
 const facilitatorAddEmployee = expressAsyncHandler(async (req, res) => {
-	const { facilitator_id, trainer_id } = req.body;
+	const { trainer_id } = req.body;
+	const { facilitator_id } = req.facilitator;
 	if (!facilitator_id || !trainer_id) {
 		res.status(400).json({
 			message: 'facilitator or trainer id is missing in the url',
@@ -883,7 +993,7 @@ const facilitatorAddEmployee = expressAsyncHandler(async (req, res) => {
 });
 
 const facilitatorEmployees = expressAsyncHandler(async (req, res) => {
-	const { facilitator_id } = req.body;
+	const { facilitator_id } = req.facilitator;
 	if (!facilitator_id) {
 		res.status(400).json({
 			message: 'Facilitator id is missing in the url',

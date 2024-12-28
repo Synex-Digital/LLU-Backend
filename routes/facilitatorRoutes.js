@@ -114,7 +114,7 @@ facilitatorRouter
 
 facilitatorRouter
 	.route('/employees')
-	.post(protect, facilitatorCheck, facilitatorEmployees);
+	.get(protect, facilitatorCheck, facilitatorEmployees);
 
 facilitatorRouter
 	.route('/add_employee')
