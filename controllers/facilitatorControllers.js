@@ -269,7 +269,7 @@ const facilitatorOngoingSessions = expressAsyncHandler(
 			`SELECT
 				fs.facility_sessions_id,
 				fa.name,
-				fa.description,
+				fs.description,
 				fa.latitude,
 				fa.longitude,
 				fs.start_time,
@@ -302,7 +302,7 @@ const facilitatorUpcomingSessions = expressAsyncHandler(async (req, res) => {
 		`SELECT
 				fs.facility_sessions_id,
 				fa.name,
-				fa.description,
+				fs.description,
 				fa.latitude,
 				fa.longitude,
 				fs.start_time,
@@ -353,7 +353,7 @@ const facilitatorCompletedSessions = expressAsyncHandler(
 			`SELECT
 			fs.facility_sessions_id,
 			fa.name,
-			fa.description,
+			fs.description,
 			fa.latitude,
 			fa.longitude,
 			fs.start_time,
