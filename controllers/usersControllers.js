@@ -162,7 +162,6 @@ const userCommunity = expressAsyncHandler(async (req, res, next) => {
 		LIMIT ? OFFSET ?`,
 		[user_id, limit, offset]
 	);
-	console.log(posts);
 	if (posts.length === 0) {
 		next();
 		return;
@@ -229,7 +228,6 @@ const userRecommendedPost = expressAsyncHandler(async (req, res) => {
 		...post,
 		post_images: post.post_images ? post.post_images.split(' , ') : [],
 	}));
-	console.log(filteredRecommendedPosts);
 	res.status(200).json({
 		page,
 		limit,
@@ -242,10 +240,10 @@ const userGetComments = expressAsyncHandler(async (req, res, next) => {
 	page = parseInt(page) || 1;
 	limit = parseInt(limit) || 10;
 	const offset = (page - 1) * limit;
-	const { post_id } = req.params;
-	if (!post_id) {
+	const { post_id } = req.body;
+	if (!post_id && typeof post_id !== 'number') {
 		res.status(400).json({
-			message: 'Post id is missing in the url',
+			message: 'Post id is missing in the url or of wrong datatype',
 		});
 		return;
 	}
@@ -268,6 +266,7 @@ const userGetComments = expressAsyncHandler(async (req, res, next) => {
 		LIMIT ? OFFSET ?`,
 		[post_id, limit, offset]
 	);
+	console.log(comments);
 	req.comments = comments;
 	next();
 });
@@ -276,20 +275,18 @@ const userIndividualPost = expressAsyncHandler(async (req, res) => {
 	let { page, limit } = req.query;
 	page = parseInt(page) || 1;
 	limit = parseInt(limit) || 10;
-	const { post_id } = req.params;
+	const { post_id } = req.body;
 	const [[post]] = await pool.query(
 		`SELECT
 			p.post_id,
 			u.first_name,
 			u.last_name,
-			c.comment_id,
 			u.img,
 			u.profile_picture,
 			GROUP_CONCAT(DISTINCT pi.img ORDER BY pi.img SEPARATOR ',') AS post_images,
 			p.time,
 			p.content,
-			COUNT(DISTINCT l.like_id) AS no_of_likes,
-			COUNT(DISTINCT c.comment_id) AS no_of_comments
+			COUNT(DISTINCT l.like_id) AS no_of_likes
 		FROM
 			posts p
 		INNER JOIN
@@ -316,6 +313,7 @@ const userIndividualPost = expressAsyncHandler(async (req, res) => {
 	if (!post) throw new Error('There are no post by this id');
 	const filteredPost = {
 		...post,
+		no_of_comments: req.comments.length,
 		post_images: post.post_images ? post.post_images.split(',') : [],
 	};
 	res.status(200).json({
@@ -329,7 +327,13 @@ const userIndividualPost = expressAsyncHandler(async (req, res) => {
 });
 
 const userProfile = expressAsyncHandler(async (req, res, next) => {
-	const { user_id } = req.params;
+	const { user_id } = req.body;
+	if (!user_id || typeof user_id !== 'number') {
+		res.status(400).json({
+			message: 'user_id is missing or of wrong type',
+		});
+		return;
+	}
 	const [[availableFollow]] = await pool.query(
 		`SELECT * FROM follows WHERE follower_user_id = ? AND followed_user_id = ?`,
 		[req.user.user_id, user_id]
@@ -356,6 +360,12 @@ const userProfile = expressAsyncHandler(async (req, res, next) => {
 			user_id = ?`,
 		[user_id]
 	);
+	if (!user) {
+		res.status(400).json({
+			message: 'There is no user by this user_id',
+		});
+		return;
+	}
 	const [[{ follower_no }]] = await pool.query(
 		`SELECT
 			COUNT(DISTINCT follower_user_id) AS follower_no
@@ -384,7 +394,7 @@ const userProfile = expressAsyncHandler(async (req, res, next) => {
 });
 
 const userOwnPosts = expressAsyncHandler(async (req, res) => {
-	const { user_id } = req.params;
+	const { user_id } = req.body;
 	let { page, limit } = req.query;
 	page = parseInt(page) || 1;
 	limit = parseInt(limit) || 10;
@@ -547,13 +557,36 @@ const userNormalChats = expressAsyncHandler(async (req, res) => {
 	});
 });
 
-//TODO prevent other user from getting access to room id messages
 const userGetMessagesInChat = expressAsyncHandler(async (req, res) => {
-	const { room_id } = req.params;
+	const { user_id } = req.user;
+	const { room_id } = req.body;
+	if (!room_id || typeof room_id !== 'string') {
+		res.status(400).json({
+			messages: 'room_id is missing or of wrong datatype',
+		});
+		return;
+	}
+	const [[availableChat]] = await pool.query(
+		`SELECT * FROM chats WHERE user_id = ? AND room_id = ?`,
+		[user_id, room_id]
+	);
+	if (!availableChat) {
+		res.status(403).json({
+			messages: 'you do not have permission to access this chat',
+		});
+		return;
+	}
 	let { start_time, end_time } = req.query;
-	const startTime = new Date(start_time);
-	const endTime = new Date(end_time);
-
+	let startTime, endTime;
+	try {
+		startTime = new Date(start_time);
+		endTime = new Date(end_time);
+	} catch (error) {
+		res.status(400).json({
+			message: 'start_time or end_time is of wrong format',
+		});
+		return;
+	}
 	if (startTime > endTime) {
 		res.status(400).json({
 			messages: 'Invalid date range',
@@ -562,13 +595,6 @@ const userGetMessagesInChat = expressAsyncHandler(async (req, res) => {
 	}
 	start_time += ' 00:00:00';
 	end_time += ' 23:59:59';
-	//TODO have to include validation for start_time and end_time
-	// if (!validateTimeStamp(start_time) || !validateTimeStamp(end_time)) {
-	// 	res.status(400).json({
-	// 		message: 'Invalid start_time or end_time format',
-	// 	});
-	// 	return;
-	// }
 	if (!room_id) {
 		res.status(400).json({
 			message: 'Chat id is missing the url',
@@ -605,9 +631,14 @@ const userGetMessagesInChat = expressAsyncHandler(async (req, res) => {
 });
 
 const userCreateChat = expressAsyncHandler(async (req, res) => {
-	const { user_id } = req.params;
+	const { user_id } = req.body;
+	if (!user_id || typeof user_id !== 'number') {
+		res.status(400).json({
+			message: 'user_id is missing or of wrong data type',
+		});
+		return;
+	}
 	const { user } = req;
-	console.log(user_id, user.user_id);
 	if (parseInt(user_id) === user.user_id) {
 		res.status(403).json({
 			message: "You can't create chat with yourself",
@@ -647,13 +678,7 @@ const userCreateChat = expressAsyncHandler(async (req, res) => {
 });
 
 const userDeleteAccount = expressAsyncHandler(async (req, res) => {
-	const { user_id } = req.params;
-	if (!user_id) {
-		res.status(400).json({
-			message: 'User id is missing',
-		});
-		return;
-	}
+	const { user_id } = req.user;
 	const [{ affectedRows }] = await pool.query(
 		`DELETE FROM users WHERE user_id = ?`,
 		[user_id]
@@ -666,10 +691,10 @@ const userDeleteAccount = expressAsyncHandler(async (req, res) => {
 
 const userLikePost = expressAsyncHandler(async (req, res) => {
 	const { user_id } = req.user;
-	const { post_id } = req.params;
-	if (!post_id) {
+	const { post_id } = req.body;
+	if (!post_id || typeof post_id !== 'number') {
 		res.status(400).json({
-			message: 'Post id is missing',
+			message: 'Post id is missing or of wrong datatype',
 		});
 		return;
 	}
@@ -701,10 +726,10 @@ const userLikePost = expressAsyncHandler(async (req, res) => {
 
 const userRemoveLikePost = expressAsyncHandler(async (req, res) => {
 	const { user_id } = req.user;
-	const { post_id } = req.params;
-	if (!post_id) {
+	const { post_id } = req.body;
+	if (!post_id || typeof post_id !== 'number') {
 		res.status(400).json({
-			message: 'Post id is missing',
+			message: 'Post id is missing or of wrong datatype',
 		});
 		return;
 	}
@@ -730,9 +755,9 @@ const userRemoveLikePost = expressAsyncHandler(async (req, res) => {
 });
 
 const userFollow = expressAsyncHandler(async (req, res) => {
-	const { user_id } = req.params;
+	const { user_id } = req.body;
 	const { user } = req;
-	if (!user_id || !user.user_id) {
+	if (!user_id || !user.user_id || typeof user_id !== 'number') {
 		res.status(400).json({
 			message: 'User id is missing',
 		});
@@ -749,12 +774,12 @@ const userFollow = expressAsyncHandler(async (req, res) => {
 });
 
 const userAddComment = expressAsyncHandler(async (req, res) => {
-	const { post_id } = req.params;
+	const { post_id } = req.body;
 	const { user_id } = req.user;
 	const { content, time } = req.body;
-	if (!post_id) {
+	if (!post_id || typeof post_id !== 'number') {
 		res.status(400).json({
-			message: 'Post id is missing',
+			message: 'Post id is missing or of wrong datatype',
 		});
 		return;
 	}
@@ -782,10 +807,10 @@ const userAddComment = expressAsyncHandler(async (req, res) => {
 
 //TODO have to handle self like feature
 const userLikeComment = expressAsyncHandler(async (req, res) => {
-	const { comment_id } = req.params;
-	if (!comment_id) {
+	const { comment_id } = req.body;
+	if (!comment_id || typeof comment_id !== 'number') {
 		res.status(400).json({
-			message: 'Comment id is missing',
+			message: 'comment_id is missing or of wrong datatype',
 		});
 		return;
 	}

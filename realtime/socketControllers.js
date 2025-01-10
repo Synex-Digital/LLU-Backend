@@ -29,6 +29,12 @@ const connectUser = async (data, socket) => {
 		`UPDATE users SET socket_id = ? WHERE user_id = ?`,
 		[socket.id, user.user_id]
 	);
+	console.log(affectedRows);
+	const [[userCheck]] = await pool.query(
+		`SELECT user_id, socket_id FROM users WHERE user_id = ?`,
+		[user.user_id]
+	);
+	console.log(userCheck);
 	if (affectedRows === 0) {
 		socket.emit('validation', {
 			message: 'Failed to connect user',
@@ -64,6 +70,8 @@ const disconnectUser = async (data, socket) => {
 	}
 };
 
+const disconnectUserBackup = async (socket) => {};
+
 const joinChat = async (data, socket) => {
 	const { token, friend_user_id } = data;
 	if (!token) {
@@ -85,6 +93,7 @@ const joinChat = async (data, socket) => {
 		});
 		return;
 	}
+	console.log(user);
 	if (!user.socket_id) {
 		socket.emit('validation', {
 			message: 'Connect user first',
@@ -214,7 +223,7 @@ const stopTyping = async (data, socket) => {
 };
 
 const sendMessage = async (data, socket) => {
-	const { token, room_id, chat_id, content, time } = data;
+	const { token, room_id, chat_id, content } = data;
 	if (!room_id) {
 		socket.emit('validation', {
 			message: 'Room id is missing',
@@ -240,15 +249,15 @@ const sendMessage = async (data, socket) => {
 		});
 		return;
 	}
-	if (!chat_id || !content || !time) {
+	if (!chat_id || !content) {
 		socket.emit('validation', {
 			message: 'Missing attributes in sent data',
 		});
 		return;
 	}
 	const [{ insertId, affectedRows }] = await pool.query(
-		`INSERT INTO messages (chat_id, content, time) VALUES (?, ?, ?)`,
-		[chat_id, content, time]
+		`INSERT INTO messages (chat_id, content) VALUES (?, ?)`,
+		[chat_id, content]
 	);
 	if (affectedRows === 0) {
 		socket.emit('validation', {
@@ -256,6 +265,11 @@ const sendMessage = async (data, socket) => {
 		});
 		return;
 	}
+	const [[{ time }]] = await pool.query(
+		`SELECT time FROM messages WHERE message_id = ?`,
+		[insertId]
+	);
+	console.log(time);
 	if (user.socket_id) {
 		socket.in(room_id).emit('receive_message', {
 			time,

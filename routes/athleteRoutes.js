@@ -14,7 +14,6 @@ import {
 	athleteUpcomingSessions,
 } from '../controllers/athleteControllers.js';
 import {
-	trainerAddAvailabilityHours,
 	trainerAvailability,
 	trainerProfile,
 	trainerReviews,
@@ -25,7 +24,13 @@ import {
 	userAddReviewImg,
 } from '../controllers/usersControllers.js';
 import { uploadFile, uploadToS3 } from '../middleware/uploadMiddleware.js';
-import { facilitySuggestions } from '../controllers/facilitatorControllers.js';
+import {
+	athleteFacilityDetails,
+	athleteFacilityEmployees,
+	athleteFacilityImages,
+	athleteFacilityReviews,
+	facilitySuggestions,
+} from '../controllers/facilitatorControllers.js';
 
 const athleteRouter = Router();
 
@@ -85,5 +90,16 @@ athleteRouter
 athleteRouter
 	.route('/suggested_facilities')
 	.post(protect, athleteCheck, facilitySuggestions);
+
+athleteRouter
+	.route('/facility_details')
+	.post(
+		protect,
+		athleteCheck,
+		athleteFacilityDetails,
+		athleteFacilityEmployees,
+		athleteFacilityImages,
+		athleteFacilityReviews
+	);
 
 export { athleteRouter };

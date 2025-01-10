@@ -1095,6 +1095,183 @@ const facilitatorDeleteFacilityImage = expressAsyncHandler(
 	}
 );
 
+const athleteFacilityDetails = expressAsyncHandler(async (req, res, next) => {
+	const { facility_id } = req.body;
+	if (!facility_id || typeof facility_id !== 'number') {
+		res.status(400).json({
+			message: 'facility_id is missing or of wrong data type',
+		});
+		return;
+	}
+	const [[facilityInfo]] = await pool.query(
+		`SELECT
+			f.name,
+			f.description,
+			f.hourly_rate,
+			f.latitude,
+			f.longitude,
+			u.user_id,
+			u.first_name,
+			u.last_name,
+			u.profile_picture,
+			u.img,
+			u.phone,
+			COUNT(r.review_facility_id) AS no_of_reviews,
+			AVG(r.rating) AS avg_rating,
+			GROUP_CONCAT(DISTINCT a.name SEPARATOR ',') AS amenities
+		FROM
+			facilities f
+		LEFT JOIN
+			facilitators fa ON f.facilitator_id = fa.facilitator_id
+		LEFT JOIN
+			users u ON fa.user_id = u.user_id
+		LEFT JOIN
+			review_facility r ON f.facility_id = r.facility_id
+		LEFT JOIN
+			amenities a ON f.facility_id = a.facility_id
+		WHERE
+			f.facility_id = ?
+		GROUP BY
+			f.name,
+			f.description,
+			f.hourly_rate,
+			f.latitude,
+			f.longitude,
+			u.user_id,
+			u.first_name,
+			u.last_name,
+			u.profile_picture,
+			u.img,
+			u.phone`,
+		[facility_id]
+	);
+	if (!facilityInfo) {
+		res.status(400).json({
+			message: 'There is no facility by this facility_id',
+		});
+		return;
+	}
+	const filteredFacilityInfo = {
+		...facilityInfo,
+		amenities: facilityInfo.amenities
+			? facilityInfo.amenities.split(',')
+			: [],
+	};
+	req.facilityInfo = filteredFacilityInfo;
+	next();
+});
+
+const athleteFacilityEmployees = expressAsyncHandler(async (req, res, next) => {
+	const { facility_id } = req.body;
+	const [employees] = await pool.query(
+		`SELECT
+			u.first_name,
+			u.last_name,
+			u.img,
+			u.profile_picture,
+			t.trainer_id,
+			COUNT(rt.review_trainer_id) AS no_of_reviews,
+			AVG(rt.rating) AS rating
+		FROM
+			facility_employees fe
+		LEFT JOIN
+			trainers t ON fe.trainer_id = t.trainer_id
+		LEFT JOIN
+			users u ON t.user_id = u.user_id
+		LEFT JOIN
+			review_trainer rt ON t.trainer_id = rt.trainer_id
+		WHERE
+			fe.facility_id = ?
+		GROUP BY
+			u.first_name,
+			u.last_name,
+			u.img,
+			u.profile_picture,
+			t.trainer_id;`,
+		[facility_id]
+	);
+	req.facilityEmployees = employees;
+	next();
+});
+
+const athleteFacilityImages = expressAsyncHandler(async (req, res, next) => {
+	const { facility_id } = req.body;
+	const [facilityImages] = await pool.query(
+		`SELECT
+			fi.img
+		FROM
+			facility_img fi
+		WHERE
+			fi.facility_id = ?`,
+		[facility_id]
+	);
+	req.filteredFacilityImages = facilityImages.map((images) => images.img);
+	next();
+});
+
+const athleteFacilityReviews = expressAsyncHandler(async (req, res) => {
+	const { facility_id } = req.body;
+	let { page, limit } = req.query;
+	page = parseInt(page) || 1;
+	limit = parseInt(limit) || 10;
+	const offset = (page - 1) * limit;
+	const [[{ no_of_reviews }]] = await pool.query(
+		`SELECT
+			COUNT(rf.review_facility_id) AS no_of_reviews
+		FROM
+			review_facility rf
+		WHERE
+			rf.facility_id = ?`,
+		[facility_id]
+	);
+	const [facilityReviews] = await pool.query(
+		`SELECT
+			u.first_name,
+			u.last_name,
+			u.img,
+			u.profile_picture,
+			rf.time,
+			rf.rating,
+			rf.content,
+			GROUP_CONCAT(DISTINCT rfi.img SEPARATOR ',') AS review_images
+		FROM
+			review_facility rf
+		LEFT JOIN
+			users u ON rf.user_id = u.user_id
+		LEFT JOIN
+			review_facility_img rfi ON rf.review_facility_id = rfi.review_facility_id
+		WHERE
+			rf.facility_id = ?
+		GROUP BY
+			u.first_name,
+			u.last_name,
+			u.img,
+			u.profile_picture,
+			rf.time,
+			rf.rating,
+			rf.content
+		LIMIT ? OFFSET ?`,
+		[facility_id, limit, offset]
+	);
+	const filteredFacilityReviews = facilityReviews.map((review) => ({
+		...review,
+		review_images: review.review_images
+			? review.review_images.split(',')
+			: [],
+	}));
+	res.status(200).json({
+		page,
+		limit,
+		data: {
+			facilityInfo: req.facilityInfo,
+			employees: req.facilityEmployees,
+			images: req.filteredFacilityImages,
+			noOfReviews: no_of_reviews,
+			reviews: filteredFacilityReviews,
+		},
+	});
+});
+
 export {
 	facilitatorAddFacility,
 	facilitatorFacilityImage,
@@ -1125,4 +1302,8 @@ export {
 	facilitatorAssignEmployee,
 	facilitatorDeleteFacilityImage,
 	facilitatorProfileCompletion,
+	athleteFacilityDetails,
+	athleteFacilityEmployees,
+	athleteFacilityImages,
+	athleteFacilityReviews,
 };

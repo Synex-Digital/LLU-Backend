@@ -6,6 +6,7 @@ import {
 	generateRefreshToken,
 } from '../utilities/generateToken.js';
 import { generateOTP } from '../utilities/generateOTP.js';
+import { facilitatorOngoingSessions } from './facilitatorControllers.js';
 
 const authLogout = expressAsyncHandler(async (req, res) => {
 	const { accessToken, refreshToken } = req.body;
@@ -522,18 +523,22 @@ const authGetSpecializedUser = async (user_id) => {
 const authLogin = expressAsyncHandler(async (req, res) => {
 	const { verified, user } = req;
 	const { password, ...filteredUser } = user;
-	res.status(verified ? 200 : 403).json({
-		loginStatus: verified,
-		specializedUserId: verified
-			? await authGetSpecializedUser(filteredUser.user_id)
-			: null,
-		user: verified ? filteredUser : null,
-		accessToken: verified
-			? generateAccessToken(filteredUser.user_id)
-			: null,
-		refreshToken: verified
-			? await generateRefreshToken(filteredUser.user_id)
-			: null,
+	const specializedUserId = await authGetSpecializedUser(
+		filteredUser.user_id
+	);
+	res.status(verified && specializedUserId ? 200 : 403).json({
+		loginStatus: verified && specializedUserId ? true : false,
+		specializedUserId:
+			verified && specializedUserId ? specializedUserId : null,
+		user: verified && specializedUserId ? filteredUser : null,
+		accessToken:
+			verified && specializedUserId
+				? generateAccessToken(filteredUser.user_id)
+				: null,
+		refreshToken:
+			verified && specializedUserId
+				? await generateRefreshToken(filteredUser.user_id)
+				: null,
 	});
 });
 

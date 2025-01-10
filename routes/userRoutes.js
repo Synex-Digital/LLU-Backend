@@ -45,28 +45,28 @@ userRouter
 userRouter.route('/posts').get(protect, userCommunity, userRecommendedPost);
 
 userRouter
-	.route('/posts/:post_id')
-	.get(protect, userGetComments, userIndividualPost);
+	.route('/individual_post')
+	.post(protect, userGetComments, userIndividualPost);
 
-userRouter.route('/profile/:user_id').get(protect, userProfile, userOwnPosts);
+userRouter.route('/profile').post(protect, userProfile, userOwnPosts);
 
-userRouter.route('/create_chat/:user_id').get(protect, userCreateChat);
+userRouter.route('/create_chat').post(protect, userCreateChat);
 
 userRouter.route('/chats').get(protect, userUnreadChats, userNormalChats);
 
-userRouter.route('/chats/:room_id').get(protect, userGetMessagesInChat);
+userRouter.route('/messages').post(protect, userGetMessagesInChat);
 
-userRouter.route('/delete_account/:user_id').get(protect, userDeleteAccount);
+userRouter.route('/delete_account').get(protect, userDeleteAccount);
 
-userRouter.route('/like/:post_id').get(protect, userLikePost);
+userRouter.route('/like').post(protect, userLikePost);
 
-userRouter.route('/remove_like/:post_id').get(protect, userRemoveLikePost);
+userRouter.route('/remove_like').post(protect, userRemoveLikePost);
 
-userRouter.route('/follow/:user_id').get(protect, userFollow);
+userRouter.route('/follow').post(protect, userFollow);
 
-userRouter.route('/comment/:post_id').post(protect, userAddComment);
+userRouter.route('/comment').post(protect, userAddComment);
 
-userRouter.route('/like_comment/:comment_id').get(protect, userLikeComment);
+userRouter.route('/like_comment').post(protect, userLikeComment);
 
 userRouter.route('/notifications').get(protect, userGetNotifications);
 
