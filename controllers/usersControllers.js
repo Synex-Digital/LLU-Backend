@@ -310,7 +310,12 @@ const userIndividualPost = expressAsyncHandler(async (req, res) => {
 			c.comment_id`,
 		[post_id]
 	);
-	if (!post) throw new Error('There are no post by this id');
+	if (!post) {
+		res.status(400).json({
+			message: 'No post by this post_id',
+		});
+		return;
+	}
 	const filteredPost = {
 		...post,
 		no_of_comments: req.comments.length,
