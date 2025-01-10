@@ -781,7 +781,7 @@ const userFollow = expressAsyncHandler(async (req, res) => {
 const userAddComment = expressAsyncHandler(async (req, res) => {
 	const { post_id } = req.body;
 	const { user_id } = req.user;
-	const { content, time } = req.body;
+	const { content } = req.body;
 	if (!post_id || typeof post_id !== 'number') {
 		res.status(400).json({
 			message: 'Post id is missing or of wrong datatype',
@@ -794,15 +794,15 @@ const userAddComment = expressAsyncHandler(async (req, res) => {
 		});
 		return;
 	}
-	if (!time || !content) {
+	if (!content) {
 		res.status(400).json({
-			message: 'Content or time id is missing',
+			message: 'content is missing',
 		});
 		return;
 	}
 	const [{ affectedRows }] = await pool.query(
-		`INSERT INTO comments (user_id, post_id, time, content) VALUES (?, ?, ?, ?)`,
-		[user_id, post_id, time, content]
+		`INSERT INTO comments (user_id, post_id, content) VALUES (?, ?, ?)`,
+		[user_id, post_id, content]
 	);
 	if (affectedRows === 0) throw new Error('Failed to add comment');
 	res.status(200).json({
