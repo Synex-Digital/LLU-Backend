@@ -188,7 +188,7 @@ const joinChat = async (data, socket) => {
 			});
 			return;
 		}
-		const [[{ room_id }]] = await pool.query(
+		const [[chat]] = await pool.query(
 			`SELECT
 				room_id
 			FROM
@@ -199,16 +199,16 @@ const joinChat = async (data, socket) => {
 				friend_user_id = ?`,
 			[user.user_id, friend_user_id]
 		);
-		if (!room_id) {
+		if (!chat?.room_id) {
 			socket.emit('validation', {
 				message: 'Need to create chat first with this friend user',
 			});
 			return;
 		}
-		socket.join(room_id);
-		console.log('Joined room: ' + room_id);
+		socket.join(chat.room_id);
+		console.log('Joined room: ' + chat.room_id);
 		socket.emit('status', {
-			room_id,
+			room_id: chat.room_id,
 			message: 'Successfully joined chat',
 		});
 	} catch (error) {
