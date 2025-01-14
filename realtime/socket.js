@@ -1,6 +1,7 @@
 import {
 	connectUser,
 	disconnectUser,
+	disconnectUserBackup,
 	joinChat,
 	leaveChat,
 	sendMessage,
@@ -33,13 +34,13 @@ const socketInitialize = (socket) => {
 		await sendMessage(data, socket);
 	});
 
-	socket.on('send_img', async (img, data) => {
-		await uploadImage(img, data, socket);
+	socket.on('send_img', async (data) => {
+		await uploadImage(data, socket);
 	});
 
-	socket.on('disconnect', (reason) => {
+	socket.on('disconnect', async (reason) => {
 		//TODO: update user socket id in database and broadcast when user disconnects
-
+		await disconnectUserBackup(socket);
 		console.log(`User disconnected ${socket.id} due to ${reason}`);
 	});
 };

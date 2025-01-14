@@ -52,7 +52,7 @@ userRouter.route('/profile').post(protect, userProfile, userOwnPosts);
 
 userRouter.route('/create_chat').post(protect, userCreateChat);
 
-userRouter.route('/chats').get(protect, userUnreadChats, userNormalChats);
+userRouter.route('/chats').get(protect, userNormalChats);
 
 userRouter.route('/messages').post(protect, userGetMessagesInChat);
 

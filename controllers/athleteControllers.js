@@ -303,9 +303,9 @@ const athleteFavoriteTrainer = expressAsyncHandler(async (req, res) => {
 });
 
 const athleteAddFavoriteTrainer = expressAsyncHandler(async (req, res) => {
-	const { trainer_id } = req.params;
+	const { trainer_id } = req.body;
 	const { user_id } = req.user;
-	if (!trainer_id) {
+	if (!trainer_id || typeof trainer_id !== 'number') {
 		res.status(400).json({
 			message: 'Trainer id is missing',
 		});
@@ -335,8 +335,8 @@ const athleteAddFavoriteTrainer = expressAsyncHandler(async (req, res) => {
 //TODO have to handle favorite duplication
 const athleteRemoveFavoriteTrainer = expressAsyncHandler(async (req, res) => {
 	const { user_id } = req.user;
-	const { trainer_id } = req.params;
-	if (!trainer_id) {
+	const { trainer_id } = req.body;
+	if (!trainer_id || typeof trainer_id !== 'number') {
 		res.status(400).json({
 			message: 'Trainer id is not provided in url',
 		});

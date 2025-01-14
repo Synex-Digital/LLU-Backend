@@ -4,12 +4,12 @@ import bcrypt from 'bcryptjs';
 import { generateRandomString } from '../utilities/generateRandomString.js';
 
 const userAddReview = expressAsyncHandler(async (req, res) => {
-	const { trainer_id } = req.params;
+	const { trainer_id } = req.body;
 	const { rating, content } = req.body;
 	const { user_id } = req.user;
-	if (!trainer_id) {
+	if (!trainer_id || typeof trainer_id !== 'number') {
 		res.status(400).json({
-			message: 'Trainer id is missing',
+			message: 'Trainer id is missing or of wrong datatype',
 		});
 		return;
 	}
@@ -170,8 +170,6 @@ const userCommunity = expressAsyncHandler(async (req, res, next) => {
 		`DELETE FROM user_unseen_posts WHERE user_id = ?`,
 		[user_id]
 	);
-	if (affectedRows === 0)
-		throw new Error('Failed to delete posts after fetching');
 	const filteredPosts = posts.map((post) => ({
 		...post,
 		post_images: post.post_images ? post.post_images.split(',') : [],
@@ -453,22 +451,60 @@ const userOwnPosts = expressAsyncHandler(async (req, res) => {
 	});
 });
 
+//TODO have to fix chat_id mixup for example:
+// "unread_chats": [
+//             {
+//                 "chat_id": 21,
+//                 "user_id": 7,
+//                 "notification_status": "all",
+//                 "room_id": "3a4a43024fe048a7c13de468b4fbf16c",
+//                 "active": 1,
+//                 "no_of_messages": 1,
+//                 "latest_message_content": "HI Shihab from shrabon(unseen)",
+//                 "first_name": "Taufiqul",
+//                 "last_name": "Shrabon",
+//                 "profile_picture": null,
+//                 "img": "https://cdn-icons-png.flaticon.com/256/20/20079.png",
+//                 "last_message_time": "2025-01-13T18:40:02.000Z"
+//             }
+//         ],
+//         "chats": [
+//             {
+//                 "chat_id": 20,
+//                 "notification_status": "all",
+//                 "friend_user_id": 7,
+//                 "room_id": "3a4a43024fe048a7c13de468b4fbf16c",
+//                 "active": 1,
+//                 "latest_message_content": "HI Shihab from shrabon(unseen)",
+//                 "first_name": "Taufiqul",
+//                 "last_name": "Shrabon",
+//                 "profile_picture": null,
+//                 "img": "https://cdn-icons-png.flaticon.com/256/20/20079.png",
+//                 "last_message_time": "2025-01-13T17:38:32.000Z"
+//             }
+//         ]
 const userUnreadChats = expressAsyncHandler(async (req, res, next) => {
 	const { user_id } = req.user;
+	console.log(user_id);
 	const [chats] = await pool.query(
 		`SELECT
 			c.chat_id,
-			um.unseen_message_id,
-			c.friend_user_id,
+			c.user_id,
 			c.notification_status,
 			c.room_id,
 			IF(u.socket_id IS NULL, FALSE, TRUE) AS active,
-			COUNT(m.content) AS no_of_messages,
+			COUNT(um.message_id) AS no_of_messages,
 			(
-				SELECT m1.content
-				FROM messages m1
-				WHERE m1.chat_id = c.chat_id
-				ORDER BY m1.time DESC
+				SELECT
+					m1.content
+				FROM
+					messages m1
+				LEFT JOIN
+					chats c1 ON m1.chat_id = c1.chat_id
+				WHERE
+					c1.room_id = c.room_id
+				ORDER BY
+					m1.time DESC
 				LIMIT 1
 			) AS latest_message_content,
 			u.first_name,
@@ -477,31 +513,28 @@ const userUnreadChats = expressAsyncHandler(async (req, res, next) => {
 			u.img,
 			MAX(m.time) AS last_message_time
 		FROM
-			chats c
-		INNER JOIN
-			messages m ON c.chat_id = m.chat_id
-		INNER JOIN
-			unseen_messages um ON m.message_id = um.message_id
-		INNER JOIN
-			users u ON c.user_id = u.user_id
+			unseen_messages um
+		LEFT JOIN
+			messages m ON m.message_id = um.message_id
+		LEFT JOIN
+			chats c ON c.chat_id = m.chat_id
+		LEFT JOIN
+			users u ON u.user_id = c.user_id 
 		WHERE
 			um.user_id = ?
 		GROUP BY
 			c.chat_id,
+			c.friend_user_id,
+			c.notification_status,
+			c.room_id,
 			u.first_name,
 			u.last_name,
 			u.profile_picture,
-			u.img`,
+			u.img
+		ORDER BY
+			m.time DESC;`,
 		[user_id]
 	);
-	for (const { unseen_message_id } of chats) {
-		const [{ affectedRows }] = await pool.query(
-			`DELETE FROM unseen_messages WHERE unseen_message_id = ?`,
-			[unseen_message_id]
-		);
-		if (affectedRows === 0)
-			throw new Error('Failed to fetch unseen messages');
-	}
 	req.newMessageChats = chats;
 	next();
 });
@@ -512,6 +545,7 @@ const userNormalChats = expressAsyncHandler(async (req, res) => {
 	page = parseInt(page) || 1;
 	limit = parseInt(limit) || 10;
 	const offset = (page - 1) * limit;
+	console.log(user_id);
 	const [chats] = await pool.query(
 		`SELECT
 			c.chat_id,
@@ -519,13 +553,11 @@ const userNormalChats = expressAsyncHandler(async (req, res) => {
 			c.friend_user_id,
 			c.room_id,
 			IF(u.socket_id IS NULL, FALSE, TRUE) AS active,
-			(
-				SELECT m1.content
-				FROM messages m1
-				WHERE m1.chat_id = c.chat_id
-				ORDER BY m1.time DESC
-				LIMIT 1
-			) AS latest_message_content,
+			m1.content AS latest_message_content,
+			CASE
+				WHEN c.new_messages > 0 THEN 0
+				ELSE 1
+			END AS latest_message_seen_status,
 			u.first_name,
 			u.last_name,
 			u.profile_picture,
@@ -535,22 +567,34 @@ const userNormalChats = expressAsyncHandler(async (req, res) => {
 			chats c
 		LEFT JOIN
 			messages m ON c.chat_id = m.chat_id
-		INNER JOIN
+		LEFT JOIN
 			users u ON c.friend_user_id = u.user_id
+		LEFT JOIN
+			messages m1 ON m1.message_id = (
+				SELECT m2.message_id
+				FROM messages m2
+				JOIN chats c2 ON m2.chat_id = c2.chat_id
+				WHERE c2.room_id = c.room_id
+				ORDER BY m2.time DESC
+				LIMIT 1
+			)
 		WHERE
 			c.user_id = ?
-		AND
-			c.new_messages = ?
 		GROUP BY
 			c.chat_id,
+			c.notification_status,
+			c.friend_user_id,
+			c.room_id,
+			m1.content,
+			c.new_messages,
 			u.first_name,
 			u.last_name,
 			u.profile_picture,
 			u.img
 		ORDER BY
 			c.last_accessed DESC
-		LIMIT ? OFFSET ?`,
-		[user_id, 0, limit, offset]
+		LIMIT ? OFFSET ?;`,
+		[user_id, limit, offset]
 	);
 	res.status(200).json({
 		page,
@@ -606,6 +650,17 @@ const userGetMessagesInChat = expressAsyncHandler(async (req, res) => {
 		});
 		return;
 	}
+	console.log(user_id);
+	const [{ affectedRows }] = await pool.query(
+		`UPDATE chats SET new_messages = 0 WHERE user_id = ?`,
+		[user_id]
+	);
+	const [updateStatus] = await pool.query(
+		`UPDATE chats SET last_accessed = NOW() WHERE chat_id = ?`,
+		[availableChat.chat_id]
+	);
+	if (updateStatus.affectedRows === 0)
+		throw new Error('Failed to update last access in chat');
 	const [messages] = await pool.query(
 		`SELECT
 			m.message_id,

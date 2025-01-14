@@ -3,10 +3,10 @@ import { pool } from '../config/db.js';
 
 //TODO divide the sections of trainer details
 const trainerProfile = expressAsyncHandler(async (req, res, next) => {
-	const { trainer_id } = req.params;
-	if (!trainer_id) {
+	const { trainer_id } = req.body;
+	if (!trainer_id || typeof trainer_id !== 'number') {
 		res.status(400).json({
-			message: 'trainer id is missing in the url',
+			message: 'trainer id is missing in the url or of wrong datatype',
 		});
 		return;
 	}
@@ -41,7 +41,7 @@ const trainerProfile = expressAsyncHandler(async (req, res, next) => {
 });
 
 const trainerStatistics = expressAsyncHandler(async (req, res, next) => {
-	const { trainer_id } = req.params;
+	const { trainer_id } = req.body;
 	const [[trainerDetails]] = await pool.query(
 		`SELECT
 			t.no_of_students,
@@ -63,7 +63,7 @@ const trainerStatistics = expressAsyncHandler(async (req, res, next) => {
 });
 
 const trainerAvailability = expressAsyncHandler(async (req, res, next) => {
-	const { trainer_id } = req.params;
+	const { trainer_id } = req.body;
 	const [trainerAvailable] = await pool.query(
 		`SELECT
 			tah.week_day,
@@ -122,7 +122,7 @@ const trainerAddAvailabilityHours = expressAsyncHandler(async (req, res) => {
 });
 
 const trainerReviews = expressAsyncHandler(async (req, res) => {
-	const { trainer_id } = req.params;
+	const { trainer_id } = req.body;
 	if (!trainer_id) {
 		res.status(400).json({
 			message: 'trainer id is missing in the url',

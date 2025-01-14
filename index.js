@@ -71,7 +71,7 @@ const port = process.env.SERVER_PORT || 8080;
 const server = app.listen(port, () => {
 	console.log('Server is running on ' + port);
 	console.log(`Listening on http://localhost:${port}/`);
-	console.log(`Production link: http://18.188.214.41:3000/`);
+	console.log(`Production link: http://3.142.144.94:3000/`);
 });
 
 //! modify after using
@@ -83,3 +83,5 @@ const io = new Server(server, {
 });
 
 io.on('connection', socketInitialize);
+
+export { io };

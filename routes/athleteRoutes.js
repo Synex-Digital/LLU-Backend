@@ -55,13 +55,11 @@ athleteRouter
 	.route('/favorites')
 	.get(protect, athleteCheck, athleteFavoriteTrainer);
 
-athleteRouter
-	.route('/add_favorite/:trainer_id')
-	.get(protect, athleteAddFavoriteTrainer);
+athleteRouter.route('/add_favorite').get(protect, athleteAddFavoriteTrainer);
 
 //TODO have to include facility favorite
 athleteRouter
-	.route('/remove_favorite_trainer/:trainer_id')
+	.route('/remove_favorite_trainer')
 	.delete(protect, athleteCheck, athleteRemoveFavoriteTrainer);
 
 athleteRouter
@@ -69,7 +67,7 @@ athleteRouter
 	.get(protect, athleteCheck, athleteProfile, athleteUpcomingSessions);
 
 athleteRouter
-	.route('/trainer/:trainer_id')
+	.route('/trainer_profile')
 	.get(
 		protect,
 		athleteCheck,
@@ -80,11 +78,11 @@ athleteRouter
 	);
 
 athleteRouter
-	.route('/:trainer_id/add_review')
+	.route('/add_review_trainer')
 	.post(protect, athleteCheck, userAddReview);
 
 athleteRouter
-	.route('/:review_id/add_img')
+	.route('/review_trainer_add_img')
 	.post(protect, athleteCheck, uploadFile, uploadToS3, userAddReviewImg);
 
 athleteRouter

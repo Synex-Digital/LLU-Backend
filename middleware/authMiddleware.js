@@ -66,7 +66,10 @@ const protect = expressAsyncHandler(async (req, res, next) => {
 			}
 			next();
 		} catch (error) {
-			throw new Error('Failed to authorize token');
+			res.status(401).json({
+				message: 'Failed to authorize token',
+			});
+			return;
 		}
 	}
 	if (!token) {
