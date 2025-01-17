@@ -259,6 +259,7 @@ const leaveChat = async (data, socket) => {
 
 const startTyping = async (data, socket) => {
 	try {
+		console.log('Start typing');
 		const { token, room_id } = data;
 		if (!token) {
 			socket.emit('validation', {
