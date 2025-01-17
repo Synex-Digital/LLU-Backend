@@ -56,7 +56,7 @@ const connectUser = async (data, socket) => {
 		console.log(sockets);
 		sockets.forEach((socket) => {
 			io.to(socket.socket_id).emit('user_active', {
-				user_id: socket.user_id,
+				user_id: user.user_id,
 				message: 'User is active',
 			});
 		});
@@ -107,7 +107,7 @@ const disconnectUser = async (data, socket) => {
 		);
 		sockets.forEach((socket) => {
 			io.to(socket.socket_id).emit('user_inactive', {
-				user_id: socket.user_id,
+				user_id: user.user_id,
 				message: 'User is inactive',
 			});
 		});
@@ -152,7 +152,7 @@ const disconnectUserBackup = async (socket) => {
 		console.log(sockets);
 		sockets.forEach((socket) => {
 			io.to(socket.socket_id).emit('user_inactive', {
-				user_id: socket.user_id,
+				user_id: user.user_id,
 				message: 'User is inactive',
 			});
 		});
