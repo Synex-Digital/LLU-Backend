@@ -367,6 +367,16 @@ const sendMessage = async (data, socket) => {
 			});
 			return;
 		}
+		const [[chatExists]] = await pool.query(
+			`SELECT chat_id FROM chats WHERE chat_id = ?`,
+			[chat_id]
+		);
+		if (!chatExists) {
+			socket.emit('validation', {
+				message: 'chat_id does not exist',
+			});
+			return;
+		}
 		const [{ insertId, affectedRows }] = await pool.query(
 			`INSERT INTO messages (chat_id, content) VALUES (?, ?)`,
 			[chat_id, content]
