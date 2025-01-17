@@ -52,6 +52,8 @@ const connectUser = async (data, socket) => {
 				c.user_id = ?;`,
 			[user.user_id]
 		);
+		console.log(user.user_id);
+		console.log(sockets);
 		sockets.forEach((socket) => {
 			io.to(socket.socket_id).emit('user_active', {
 				user_id: socket.user_id,
