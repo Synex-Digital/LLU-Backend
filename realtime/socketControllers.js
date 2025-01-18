@@ -501,15 +501,75 @@ const uploadImage = async (data, socket) => {
 			});
 			return;
 		}
+		const [[chatExists]] = await pool.query(
+			`SELECT chat_id FROM chats WHERE chat_id = ?`,
+			[chat_id]
+		);
+		if (!chatExists) {
+			socket.emit('validation', {
+				message: 'chat_id does not exist',
+			});
+			return;
+		}
 		const imageUrl = await uploadImageToS3(image, socket);
-		const [{ affectedRows }] = await pool.query(
+		const [{ affectedRows, insertId }] = await pool.query(
 			`INSERT INTO messages (chat_id, content) VALUES (?, ?)`,
 			[chat_id, imageUrl]
 		);
-		if (affectedRows === 0) throw new Error('Failed to send message');
-		socket.to(room_id).emit('receive_img', {
-			image: imageUrl,
-		});
+		if (affectedRows === 0) {
+			socket.emit('validation', {
+				message: 'Failed to send image',
+			});
+			return;
+		}
+		const [[{ time }]] = await pool.query(
+			`SELECT time FROM messages WHERE message_id = ?`,
+			[insertId]
+		);
+		console.log('Sending user: ', user.user_id);
+
+		const [[{ user_id, socket_id }]] = await pool.query(
+			`SELECT
+				u.user_id,
+				u.socket_id
+			FROM
+				chats c
+			LEFT JOIN
+				users u ON c.friend_user_id = u.user_id
+			WHERE
+				chat_id = ?`,
+			[chat_id]
+		);
+		console.log('Receiving user: ', user_id);
+		console.log(`FRIEND USER ${!!socket_id}`);
+		if (socket_id) {
+			socket.in(room_id).emit('receive_img', {
+				time,
+				user_id: user.user_id,
+				room_id,
+				chat_id,
+				message_content: imageUrl,
+			});
+			return;
+		}
+		//TODO have to send no_of_new_messages along with chats and change new_messages to int
+		const [insertStatus] = await pool.query(
+			`UPDATE 
+				chats
+			SET
+				new_messages = new_messages + 1
+			WHERE
+				friend_user_id = ?
+			AND
+				room_id = ?`,
+			[user_id, room_id]
+		);
+		if (insertStatus.affectedRows === 0) {
+			socket.emit('validation', {
+				message: 'Failed to send message',
+			});
+			return;
+		}
 	} catch (error) {
 		socket.emit('validation', {
 			message: error.message,

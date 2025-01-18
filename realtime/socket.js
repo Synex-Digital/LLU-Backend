@@ -39,7 +39,6 @@ const socketInitialize = (socket) => {
 	});
 
 	socket.on('disconnect', async (reason) => {
-		//TODO: update user socket id in database and broadcast when user disconnects
 		await disconnectUserBackup(socket);
 		console.log(`User disconnected ${socket.id} due to ${reason}`);
 	});

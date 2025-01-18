@@ -539,6 +539,7 @@ const userUnreadChats = expressAsyncHandler(async (req, res, next) => {
 	next();
 });
 
+//TODO have to sort messages using unread
 const userNormalChats = expressAsyncHandler(async (req, res) => {
 	const { user_id } = req.user;
 	let { page, limit } = req.query;
@@ -562,7 +563,7 @@ const userNormalChats = expressAsyncHandler(async (req, res) => {
 			u.last_name,
 			u.profile_picture,
 			u.img,
-			MAX(m.time) AS last_message_time
+			m1.time AS last_message_time
 		FROM
 			chats c
 		LEFT JOIN
