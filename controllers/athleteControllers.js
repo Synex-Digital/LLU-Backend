@@ -71,8 +71,6 @@ const athleteTopTrainer = expressAsyncHandler(async (req, res, next) => {
 				POINT(u.longitude, u.latitude),
 				POINT(?, ?)
 			) <= 16093.4
-		AND 
-			rt.time >= NOW() - INTERVAL 1 WEEK
 		GROUP BY 
 			u.user_id
 		ORDER BY 
@@ -80,6 +78,7 @@ const athleteTopTrainer = expressAsyncHandler(async (req, res, next) => {
 		LIMIT ? OFFSET ?;`,
 		[longitude, latitude, limit, offset]
 	);
+	//TODO have to include query in production
 	/**
 	 * AND 
 		rt.time >= NOW() - INTERVAL 1 WEEK
@@ -187,12 +186,10 @@ const athleteFilterTrainer = expressAsyncHandler(async (req, res) => {
 			u.last_name,
 			u.latitude,
 			u.longitude,
-			r.avg_rating AS avg_rating,
+			COALESCE(r.avg_rating, 0) AS avg_rating,
 			r.no_of_ratings AS no_of_ratings,
-			ST_Distance_Sphere(
-				POINT(u.longitude, u.latitude),
-				POINT(?, ?)
-			) AS distance
+			u.longitude,
+			u.latitude
 		FROM
 			users u
 		INNER JOIN
