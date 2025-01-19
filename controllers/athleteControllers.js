@@ -234,8 +234,6 @@ const athleteFilterTrainer = expressAsyncHandler(async (req, res) => {
 		[
 			longitude,
 			latitude,
-			longitude,
-			latitude,
 			specialization,
 			starting_hourly_rate,
 			ending_hourly_rate,
