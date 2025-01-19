@@ -187,9 +187,7 @@ const athleteFilterTrainer = expressAsyncHandler(async (req, res) => {
 			u.latitude,
 			u.longitude,
 			COALESCE(r.avg_rating, 0) AS avg_rating,
-			r.no_of_ratings AS no_of_ratings,
-			u.longitude,
-			u.latitude
+			r.no_of_ratings AS no_of_ratings
 		FROM
 			users u
 		INNER JOIN
@@ -353,7 +351,12 @@ const athleteRemoveFavoriteTrainer = expressAsyncHandler(async (req, res) => {
 		`DELETE FROM favorite_trainer WHERE user_id = ? AND trainer_id = ?;`,
 		[user_id, trainer_id]
 	);
-	if (affectedRows === 0) throw new Error('Failed to remove favorite');
+	if (affectedRows === 0) {
+		res.status(403).json({
+			message: 'Already deleted',
+		});
+		return;
+	}
 	res.status(200).json({
 		message: 'Successfully removed favorite',
 	});
