@@ -23,7 +23,7 @@ const athleteFeaturedTrainer = expressAsyncHandler(async (req, res, next) => {
 			t.specialization,
 			t.specialization_level,
 			t.hourly_rate,
-			AVG(r.rating) as avg_rating
+			COALESCE(AVG(rt.rating), 0) AS avg_rating
 		FROM
 			users u
 		INNER JOIN
@@ -59,7 +59,7 @@ const athleteTopTrainer = expressAsyncHandler(async (req, res, next) => {
 			u.img, 
 			u.first_name, 
 			u.last_name, 
-			AVG(rt.rating) AS average_rating
+			COALESCE(AVG(rt.rating), 0) AS avg_rating
 		FROM 
 			users u
 		INNER JOIN 
@@ -71,6 +71,8 @@ const athleteTopTrainer = expressAsyncHandler(async (req, res, next) => {
 				POINT(u.longitude, u.latitude),
 				POINT(?, ?)
 			) <= 16093.4
+		AND 
+			rt.time >= NOW() - INTERVAL 1 WEEK
 		GROUP BY 
 			u.user_id
 		ORDER BY 
@@ -101,7 +103,7 @@ const athleteNearbyFacilities = expressAsyncHandler(async (req, res, next) => {
 			f.latitude,
 			f.longitude,
 			fi.img,
-			AVG(COALESCE(rf.rating, 0)) AS avg_rating
+			COALESCE(AVG(rt.rating), 0) AS avg_rating
 		FROM
 			facilities f
 		LEFT JOIN
