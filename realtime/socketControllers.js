@@ -422,17 +422,19 @@ const sendMessage = async (data, socket) => {
 			});
 			return;
 		}
-		//TODO have to add friend_user_id because it is updating every user_id
+		console.log(user.user_id, room_id, user_id);
 		const [insertStatus] = await pool.query(
 			`UPDATE 
 				chats
 			SET
 				new_messages = new_messages + 1
 			WHERE
-				friend_user_id = ?
+				user_id = ?
 			AND
-				room_id = ?`,
-			[user_id, room_id]
+				room_id = ?
+			AND
+				friend_user_id = ?`,
+			[user_id, room_id, user.user_id]
 		);
 		if (insertStatus.affectedRows === 0) {
 			socket.emit('validation', {
@@ -552,17 +554,19 @@ const uploadImage = async (data, socket) => {
 			});
 			return;
 		}
-		//TODO have to send no_of_new_messages along with chats and change new_messages to int
+		console.log(user.user_id, room_id, user_id);
 		const [insertStatus] = await pool.query(
 			`UPDATE 
 				chats
 			SET
 				new_messages = new_messages + 1
 			WHERE
-				friend_user_id = ?
+				user_id = ?
 			AND
-				room_id = ?`,
-			[user_id, room_id]
+				room_id = ?
+			AND
+				friend_user_id = ?`,
+			[user_id, room_id, user.user_id]
 		);
 		if (insertStatus.affectedRows === 0) {
 			socket.emit('validation', {

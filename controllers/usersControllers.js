@@ -552,7 +552,7 @@ const userNormalChats = expressAsyncHandler(async (req, res) => {
 			c.chat_id,
 			c.notification_status,
 			c.friend_user_id,
-			c.room_id,
+			c.new_messages as no_of_new_messages,
 			IF(u.socket_id IS NULL, FALSE, TRUE) AS active,
 			m1.content AS latest_message_content,
 			CASE
@@ -593,7 +593,7 @@ const userNormalChats = expressAsyncHandler(async (req, res) => {
 			u.profile_picture,
 			u.img
 		ORDER BY
-			c.last_accessed DESC
+			m1.time DESC
 		LIMIT ? OFFSET ?;`,
 		[user_id, limit, offset]
 	);
