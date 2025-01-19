@@ -23,7 +23,7 @@ const athleteFeaturedTrainer = expressAsyncHandler(async (req, res, next) => {
 			t.specialization,
 			t.specialization_level,
 			t.hourly_rate,
-			COALESCE(AVG(rt.rating), 0) AS avg_rating
+			COALESCE(AVG(r.rating), 0) AS avg_rating
 		FROM
 			users u
 		INNER JOIN
@@ -103,7 +103,7 @@ const athleteNearbyFacilities = expressAsyncHandler(async (req, res, next) => {
 			f.latitude,
 			f.longitude,
 			fi.img,
-			COALESCE(AVG(rt.rating), 0) AS avg_rating
+			COALESCE(AVG(rf.rating), 0) AS avg_rating
 		FROM
 			facilities f
 		LEFT JOIN
