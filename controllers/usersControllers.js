@@ -1,6 +1,5 @@
 import expressAsyncHandler from 'express-async-handler';
 import { pool } from '../config/db.js';
-import bcrypt from 'bcryptjs';
 import { generateRandomString } from '../utilities/generateRandomString.js';
 
 const userAddReview = expressAsyncHandler(async (req, res) => {
@@ -17,8 +16,12 @@ const userAddReview = expressAsyncHandler(async (req, res) => {
 		`SELECT * FROM review_trainer WHERE user_id = ? AND trainer_id = ?`,
 		[user_id, trainer_id]
 	);
-	if (availableReview)
-		throw new Error('User already reviewed mentioned trainer');
+	if (availableReview) {
+		res.status(403).json({
+			message: 'user already posted review',
+		});
+		return;
+	}
 	const [{ affectedRows, insertId }] = await pool.query(
 		`INSERT INTO review_trainer (user_id, rating, trainer_id, content) VALUES (?, ?, ?, ?)`,
 		[user_id, rating, trainer_id, content]
@@ -30,7 +33,7 @@ const userAddReview = expressAsyncHandler(async (req, res) => {
 });
 
 const userAddReviewImg = expressAsyncHandler(async (req, res) => {
-	const { review_id } = req.params;
+	const { review_id } = req.body;
 	if (!review_id) {
 		res.status(400).json({
 			message: 'review id is missing in the url',
