@@ -238,11 +238,8 @@ const facilitySuggestions = expressAsyncHandler(async (req, res) => {
 		LIMIT ? OFFSET ?`,
 		[longitude, latitude, limit, offset]
 	);
-	res.status(200).json({
-		page,
-		limit,
-		data: suggestedFacility,
-	});
+	req.suggestedFacility = suggestedFacility;
+	next();
 });
 
 const facilitatorOngoingSessions = expressAsyncHandler(

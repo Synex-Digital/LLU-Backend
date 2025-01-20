@@ -74,6 +74,7 @@ athleteRouter
 		trainerProfile,
 		trainerStatistics,
 		trainerAvailability,
+		facilitySuggestions,
 		trainerReviews
 	);
 
@@ -84,10 +85,6 @@ athleteRouter
 athleteRouter
 	.route('/review_trainer_add_img')
 	.post(protect, athleteCheck, uploadFile, uploadToS3, userAddReviewImg);
-
-athleteRouter
-	.route('/suggested_facilities')
-	.post(protect, athleteCheck, facilitySuggestions);
 
 athleteRouter
 	.route('/facility_details')

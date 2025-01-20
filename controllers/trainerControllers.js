@@ -174,6 +174,7 @@ const trainerReviews = expressAsyncHandler(async (req, res) => {
 			profile: req.trainerProfile,
 			statistics: req.trainerStatistics,
 			availability: req.trainerAvailability,
+			suggested_facility: req.suggestedFacility,
 			reviews: filteredReviews,
 		},
 	});
