@@ -34,8 +34,14 @@ const upload = multer({
 const uploadFile = expressAsyncHandler(async (req, res, next) => {
 	upload.single('img')(req, res, (err) => {
 		if (err instanceof multer.MulterError)
-			throw new Error(`multer message: ${err.message}`);
-		else if (err) throw new Error(`message: ${err.message}`);
+			throw new Error(`Multer Error: ${err.message}`);
+		else if (err) throw new Error(`Error: ${err.message}`);
+		if (!req.file) {
+			res.status(400).json({
+				message: 'No file uploaded. Please attach a file.',
+			});
+			return;
+		}
 		next();
 	});
 });
@@ -68,8 +74,14 @@ const uploadToS3 = expressAsyncHandler(async (req, res, next) => {
 const uploadMultiple = expressAsyncHandler(async (req, res, next) => {
 	upload.array('img', 10)(req, res, (err) => {
 		if (err instanceof multer.MulterError)
-			throw new Error(`multer message: ${err.message}`);
-		else if (err) throw new Error(`message: ${err.message}`);
+			throw new Error(`Multer Error: ${err.message}`);
+		else if (err) throw new Error(`Error: ${err.message}`);
+		if (!req.files || req.files.length === 0) {
+			res.status(400).json({
+				message: 'No files uploaded. Please attach at least one file.',
+			});
+			return;
+		}
 		next();
 	});
 });
