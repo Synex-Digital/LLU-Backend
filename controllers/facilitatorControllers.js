@@ -1168,7 +1168,7 @@ const athleteFacilityEmployees = expressAsyncHandler(async (req, res, next) => {
 			u.profile_picture,
 			t.trainer_id,
 			COUNT(rt.review_trainer_id) AS no_of_reviews,
-			COALESCE(AVG(rt.rating), 0) AS avg_rating,
+			COALESCE(AVG(rt.rating), 0) AS avg_rating
 		FROM
 			facility_employees fe
 		LEFT JOIN
