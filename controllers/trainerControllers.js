@@ -67,7 +67,9 @@ const trainerAvailability = expressAsyncHandler(async (req, res, next) => {
 	const [trainerAvailable] = await pool.query(
 		`SELECT
 			tah.week_day,
-			tah.available_hours
+			tah.start_time,
+			tah.end_time,
+			tah.available
 		FROM
 			trainer_availability_hours tah
 		WHERE
