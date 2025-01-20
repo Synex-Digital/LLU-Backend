@@ -199,7 +199,7 @@ const facilityReview = expressAsyncHandler(async (req, res) => {
 	});
 });
 
-const facilitySuggestions = expressAsyncHandler(async (req, res) => {
+const facilitySuggestions = expressAsyncHandler(async (req, res, next) => {
 	const { latitude, longitude } = req.body;
 	if (!latitude || !longitude) {
 		res.status(400).json({
