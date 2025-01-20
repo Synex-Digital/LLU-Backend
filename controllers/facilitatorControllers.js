@@ -1114,7 +1114,7 @@ const athleteFacilityDetails = expressAsyncHandler(async (req, res, next) => {
 			u.img,
 			u.phone,
 			COUNT(r.review_facility_id) AS no_of_reviews,
-			AVG(r.rating) AS avg_rating,
+			COALESCE(AVG(r.rating), 0) AS avg_rating,
 			GROUP_CONCAT(DISTINCT a.name SEPARATOR ',') AS amenities
 		FROM
 			facilities f
@@ -1168,7 +1168,7 @@ const athleteFacilityEmployees = expressAsyncHandler(async (req, res, next) => {
 			u.profile_picture,
 			t.trainer_id,
 			COUNT(rt.review_trainer_id) AS no_of_reviews,
-			AVG(rt.rating) AS rating
+			COALESCE(AVG(rt.rating), 0) AS avg_rating,
 		FROM
 			facility_employees fe
 		LEFT JOIN
@@ -1263,7 +1263,7 @@ const athleteFacilityReviews = expressAsyncHandler(async (req, res) => {
 			facilityInfo: req.facilityInfo,
 			employees: req.facilityEmployees,
 			images: req.filteredFacilityImages,
-			noOfReviews: no_of_reviews,
+			no_of_reviews: no_of_reviews,
 			reviews: filteredFacilityReviews,
 		},
 	});
