@@ -217,7 +217,7 @@ const facilitySuggestions = expressAsyncHandler(async (req, res, next) => {
 			f.latitude,
 			f.longitude,
 			f.hourly_rate,
-			AVG(rf.rating) AS avg_rating,
+			COALESCE(AVG(r.rating), 0) AS avg_rating,
 			fi.img
 		FROM
 			facilities f
