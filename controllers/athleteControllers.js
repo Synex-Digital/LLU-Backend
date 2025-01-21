@@ -369,6 +369,7 @@ const athleteFavoriteTrainer = expressAsyncHandler(async (req, res) => {
 	const { user_id } = req.user;
 	const [favoriteTrainers] = await pool.query(
 		`SELECT
+			t.trainer_id,
 			u.first_name,
 			u.last_name,
 			u.profile_picture,
