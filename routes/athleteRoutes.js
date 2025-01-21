@@ -60,7 +60,7 @@ athleteRouter
 	.route('/favorites')
 	.get(protect, athleteCheck, athleteFavoriteTrainer);
 
-athleteRouter.route('/add_favorite').get(protect, athleteAddFavoriteTrainer);
+athleteRouter.route('/add_favorite').post(protect, athleteAddFavoriteTrainer);
 
 //TODO have to include facility favorite
 athleteRouter
