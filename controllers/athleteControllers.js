@@ -1,5 +1,6 @@
 import expressAsyncHandler from 'express-async-handler';
 import { pool } from '../config/db.js';
+import { arrayCompare } from '../utilities/arrayCompare.js';
 
 const athleteFeaturedTrainer = expressAsyncHandler(async (req, res, next) => {
 	let { page, limit } = req.query;
@@ -179,6 +180,7 @@ const athleteFilterTrainer = expressAsyncHandler(async (req, res) => {
 		return;
 	}
 	const offset = (page - 1) * limit;
+
 	const [filteredTrainer] = await pool.query(
 		`SELECT
 			t.trainer_id,
@@ -223,7 +225,7 @@ const athleteFilterTrainer = expressAsyncHandler(async (req, res) => {
 		AND
 			tah.week_day = ?
 		AND
-			tah.available_hours <> ?
+			tah.available = 1
 		GROUP BY
 			u.user_id
 		ORDER BY
@@ -239,7 +241,6 @@ const athleteFilterTrainer = expressAsyncHandler(async (req, res) => {
 			ending_ratings,
 			gender,
 			available,
-			'Not available',
 			limit,
 			offset,
 		]
@@ -257,23 +258,70 @@ const athleteFilterTrainer = expressAsyncHandler(async (req, res) => {
 	});
 });
 
+const athleteFilterFacilities = expressAsyncHandler(async (req, res) => {
+	const { amenities, availability } = req.body;
+	if (!Array.isArray(amenities) || !Array.isArray(availability)) {
+		return res.status(400).json({
+			message: 'amenities or availability is of the wrong datatype',
+		});
+	}
+	if (amenities.length === 0 && availability.length === 0) {
+		return res.status(400).json({
+			message: 'amenities and availability both cannot be empty',
+		});
+	}
+	const [facilities] = await pool.query(`
+		SELECT
+			f.facility_id,
+			f.name,
+			f.latitude,
+			f.longitude,
+			COUNT(DISTINCT rf.review_facility_id) as no_of_reviews,
+			COALESCE(AVG(rf.rating), 0) as avg_rating,
+			GROUP_CONCAT(DISTINCT a.name SEPARATOR ',') AS amenities,
+			GROUP_CONCAT(DISTINCT fah.week_day SEPARATOR ',') AS week_days
+		FROM
+			facilities f
+		LEFT JOIN
+			review_facility rf ON f.facility_id = rf.facility_id
+		LEFT JOIN
+			amenities a ON f.facility_id = a.facility_id
+		LEFT JOIN
+			facility_availability_hours fah ON f.facility_id = fah.facility_id
+		WHERE
+			fah.available = 1
+		GROUP BY
+			f.facility_id, f.name, f.latitude, f.longitude
+	`);
+	const filteredFacilities = facilities
+		.filter((facility) => {
+			const facilityAmenities = facility.amenities
+				? facility.amenities.split(',')
+				: [];
+			const facilityWeekDays = facility.week_days
+				? facility.week_days.split(',')
+				: [];
+			return (
+				arrayCompare(amenities, facilityAmenities) &&
+				arrayCompare(availability, facilityWeekDays)
+			);
+		})
+		.map(({ amenities, week_days, ...facility }) => ({
+			...facility,
+		}));
+	res.status(200).json(filteredFacilities);
+});
+
 const athleteEditProfile = expressAsyncHandler(async (req, res) => {
 	const { user_id } = req.user;
-	const {
-		latitude,
-		longitude,
-		short_description,
-		first_name,
-		last_name,
-		img,
-	} = req.body;
+	const { latitude, longitude, short_description, first_name, last_name } =
+		req.body;
 	if (
 		!latitude ||
 		!longitude ||
 		!short_description ||
 		!first_name ||
-		!last_name ||
-		!img
+		!last_name
 	) {
 		res.status(400).json({
 			message: 'Missing attributes',
@@ -288,21 +336,25 @@ const athleteEditProfile = expressAsyncHandler(async (req, res) => {
 			longitude = ?,
 			short_description = ?,
 			first_name = ?,
-			last_name = ?,
-			img = ?
+			last_name = ?
 		WHERE
 			user_id = ?`,
-		[
-			latitude,
-			longitude,
-			short_description,
-			first_name,
-			last_name,
-			req.filePath,
-			user_id,
-		]
+		[latitude, longitude, short_description, first_name, last_name, user_id]
 	);
 	if (affectedRows === 0) throw new Error('Failed to update profile');
+	if (req.file) {
+		const [{ affectedRows }] = await pool.query(
+			`UPDATE
+				users
+			SET
+				img = ?
+			WHERE
+				user_id = ?`,
+			[req.filePath, user_id]
+		);
+		if (affectedRows === 0)
+			throw new Error('Failed to update profile image');
+	}
 	res.status(200).json({
 		message: 'Successfully updated athlete profile',
 	});
@@ -446,7 +498,11 @@ const athleteUpcomingSessions = expressAsyncHandler(async (req, res) => {
 		LEFT JOIN
 			facilities fa ON fs.facility_id = fa.facility_id
 		WHERE
-			fs.user_id = ?`,
+			fs.user_id = ?
+		AND
+			fs.end_time > NOW()
+		AND
+			fs.start_time > NOW()`,
 		[user_id]
 	);
 	req.upcomingSessions = upcomingSessions;
@@ -471,4 +527,5 @@ export {
 	athleteNearbyFacilities,
 	athleteAddFavoriteTrainer,
 	athleteEditProfile,
+	athleteFilterFacilities,
 };

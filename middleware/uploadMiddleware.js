@@ -36,18 +36,17 @@ const uploadFile = expressAsyncHandler(async (req, res, next) => {
 		if (err instanceof multer.MulterError)
 			throw new Error(`Multer Error: ${err.message}`);
 		else if (err) throw new Error(`Error: ${err.message}`);
-		if (!req.file) {
-			res.status(400).json({
-				message: 'No file uploaded. Please attach a file.',
-			});
-			return;
-		}
 		next();
 	});
 });
 
 const uploadToS3 = expressAsyncHandler(async (req, res, next) => {
 	const file = req.file;
+	console.log(file);
+	if (!req.file) {
+		next();
+		return;
+	}
 	const { height, width } = req.body;
 	const imageName = generateRandomString();
 	const imageMetaData = await sharp(file.buffer).metadata();
@@ -76,17 +75,15 @@ const uploadMultiple = expressAsyncHandler(async (req, res, next) => {
 		if (err instanceof multer.MulterError)
 			throw new Error(`Multer Error: ${err.message}`);
 		else if (err) throw new Error(`Error: ${err.message}`);
-		if (!req.files || req.files.length === 0) {
-			res.status(400).json({
-				message: 'No files uploaded. Please attach at least one file.',
-			});
-			return;
-		}
 		next();
 	});
 });
 
 const uploadMultipleToS3 = expressAsyncHandler(async (req, res, next) => {
+	if (req.files.length === 0) {
+		next();
+		return;
+	}
 	const filePaths = [];
 	const { height, width } = req.body;
 	await Promise.all(

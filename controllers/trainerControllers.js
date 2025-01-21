@@ -110,10 +110,10 @@ const trainerAddAvailabilityHours = expressAsyncHandler(async (req, res) => {
 	});
 	//TODO have to do logic for update
 	availability_hours.forEach(async (availability, index) => {
-		const { week_day, available_hours } = availability;
+		const { week_day, start_time, end_time, available } = availability;
 		const [{ affectedRows }] = await pool.query(
-			`INSERT INTO trainer_availability_hours (week_day, available_hours, trainer_id) VALUES (?, ?, ?)`,
-			[week_day, available_hours, trainer_id]
+			`INSERT INTO trainer_availability_hours (week_day, start_time, end_time, available, trainer_id) VALUES (?, ?, ?, ?, ?)`,
+			[week_day, start_time, end_time, available, trainer_id]
 		);
 		if (affectedRows === 0)
 			throw new Error('Failed to add available hours');

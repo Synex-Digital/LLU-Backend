@@ -6,6 +6,7 @@ import {
 	athleteEditProfile,
 	athleteFavoriteTrainer,
 	athleteFeaturedTrainer,
+	athleteFilterFacilities,
 	athleteFilterTrainer,
 	athleteHome,
 	athleteNearbyFacilities,
@@ -22,6 +23,7 @@ import {
 } from '../controllers/trainerControllers.js';
 import {
 	userAddReview,
+	userAddReviewFacility,
 	userAddReviewImg,
 } from '../controllers/usersControllers.js';
 import { uploadFile, uploadToS3 } from '../middleware/uploadMiddleware.js';
@@ -50,7 +52,9 @@ athleteRouter
 	.route('/search_trainer')
 	.post(protect, athleteCheck, athleteFilterTrainer);
 
-//TODO have to include facility filter
+athleteRouter
+	.route('/search_facility')
+	.post(protect, athleteCheck, athleteFilterFacilities);
 
 athleteRouter
 	.route('/favorites')
@@ -65,7 +69,8 @@ athleteRouter
 
 athleteRouter
 	.route('/profile')
-	.get(protect, athleteCheck, athleteProfile, athleteUpcomingSessions);
+	.get(protect, athleteCheck, athleteProfile, athleteUpcomingSessions)
+	.patch(protect, athleteCheck, uploadFile, uploadToS3, athleteEditProfile);
 
 athleteRouter
 	.route('/trainer_profile')
@@ -77,8 +82,7 @@ athleteRouter
 		trainerAvailability,
 		facilitySuggestions,
 		trainerReviews
-	)
-	.patch(protect, athleteCheck, uploadFile, uploadToS3, athleteEditProfile);
+	);
 
 athleteRouter
 	.route('/add_review_trainer')

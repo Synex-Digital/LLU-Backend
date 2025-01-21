@@ -12,6 +12,12 @@ const userAddReview = expressAsyncHandler(async (req, res) => {
 		});
 		return;
 	}
+	if (!rating || !content) {
+		res.status(400).json({
+			message: 'Missing attributes',
+		});
+		return;
+	}
 	const [[availableReview]] = await pool.query(
 		`SELECT * FROM review_trainer WHERE user_id = ? AND trainer_id = ?`,
 		[user_id, trainer_id]
@@ -32,7 +38,49 @@ const userAddReview = expressAsyncHandler(async (req, res) => {
 	});
 });
 
+const userAddReviewFacility = expressAsyncHandler(async (req, res) => {
+	const { facility_id } = req.body;
+	const { rating, content } = req.body;
+	const { user_id } = req.user;
+	if (!facility_id || typeof facility_id !== 'number') {
+		res.status(400).json({
+			message: 'facility_id is missing or of wrong datatype',
+		});
+		return;
+	}
+	if (!rating || !content) {
+		res.status(400).json({
+			message: 'Missing attributes',
+		});
+		return;
+	}
+	const [[availableReview]] = await pool.query(
+		`SELECT * FROM review_facility WHERE user_id = ? AND facility_id = ?`,
+		[user_id, facility_id]
+	);
+	if (availableReview) {
+		res.status(403).json({
+			message: 'user already posted review',
+		});
+		return;
+	}
+	const [{ affectedRows, insertId }] = await pool.query(
+		`INSERT INTO review_facility (user_id, rating, facility_id, content) VALUES (?, ?, ?, ?)`,
+		[user_id, rating, facility_id, content]
+	);
+	if (affectedRows === 0) throw new Error('Failed to add review');
+	res.status(200).json({
+		review_id: insertId,
+	});
+});
+
 const userAddReviewImg = expressAsyncHandler(async (req, res) => {
+	if (!req.file) {
+		res.status(400).json({
+			message: 'No file uploaded. Please attach a file.',
+		});
+		return;
+	}
 	const { review_id } = req.body;
 	if (!review_id) {
 		res.status(400).json({
@@ -83,6 +131,10 @@ const userAddPost = expressAsyncHandler(async (req, res, next) => {
 
 const userAddPostImage = expressAsyncHandler(async (req, res, next) => {
 	const { post_id, filePaths } = req;
+	if (!filePaths) {
+		next();
+		return;
+	}
 	for (const path of filePaths) {
 		console.log(path);
 		const [{ affectedRows }] = await pool.query(
@@ -186,6 +238,7 @@ const userCommunity = expressAsyncHandler(async (req, res, next) => {
 
 //TODO have to count all no of posts along with page and limit
 const userRecommendedPost = expressAsyncHandler(async (req, res) => {
+	const { user_id } = req.user;
 	let { page, limit } = req.query;
 	page = parseInt(page) || 1;
 	limit = parseInt(limit) || 10;
@@ -202,7 +255,15 @@ const userRecommendedPost = expressAsyncHandler(async (req, res) => {
 			p.time,
 			p.content,
 			COUNT(DISTINCT l.like_id) AS no_of_likes,
-			COUNT(DISTINCT c.comment_id) AS no_of_comments
+			COUNT(DISTINCT c.comment_id) AS no_of_comments,
+			CASE 
+				WHEN EXISTS (
+					SELECT 1 
+					FROM likes l2 
+					WHERE l2.post_id = p.post_id AND l2.user_id = ?
+				) THEN 1
+				ELSE 0
+			END AS has_liked
 		FROM
 			posts p
 		INNER JOIN
@@ -223,7 +284,7 @@ const userRecommendedPost = expressAsyncHandler(async (req, res) => {
 		ORDER BY
 			COUNT(DISTINCT l.like_id) DESC
 		LIMIT ? OFFSET ?`,
-		[limit, offset]
+		[user_id, limit, offset]
 	);
 	const filteredRecommendedPosts = recommendedPosts.map((post) => ({
 		...post,
@@ -610,6 +671,50 @@ const userNormalChats = expressAsyncHandler(async (req, res) => {
 	});
 });
 
+const userHandleNotificationStatus = expressAsyncHandler(async (req, res) => {
+	const { status, chat_id } = req.body;
+	const { user_id } = req.user;
+	if (!status || !chat_id) {
+		res.status(400).json({
+			message: 'Missing attributes',
+		});
+		return;
+	}
+	const allowedStates = ['all', 'muted'];
+	if (!allowedStates.includes(status)) {
+		res.status(400).json({
+			message: 'Invalid status',
+		});
+		return;
+	}
+	const [[availableChat]] = await pool.query(
+		`SELECT * FROM chats WHERE chat_id = ? AND user_id = ?`,
+		[chat_id, user_id]
+	);
+	console.log(availableChat);
+	if (!availableChat) {
+		res.status(403).json({
+			message:
+				'Do not have permission to update chat notification status',
+		});
+		return;
+	}
+	const [{ affectedRows }] = await pool.query(
+		`UPDATE
+			chats
+		SET
+			notification_status = ?
+		WHERE
+			chat_id = ?`,
+		[status, chat_id]
+	);
+	if (affectedRows === 0)
+		throw new Error('Failed to update chat notification status');
+	res.status(200).json({
+		message: 'Successfully updated chat notification status',
+	});
+});
+
 const userGetMessagesInChat = expressAsyncHandler(async (req, res) => {
 	const { user_id } = req.user;
 	const { room_id } = req.body;
@@ -706,7 +811,6 @@ const userCreateChat = expressAsyncHandler(async (req, res) => {
 		`SELECT * FROM users WHERE user_id = ?`,
 		[user_id]
 	);
-	console.log(availableUser);
 	if (!availableUser) {
 		res.status(400).json({
 			message: 'User does not exist for provided user_id',
@@ -880,7 +984,7 @@ const userAddComment = expressAsyncHandler(async (req, res) => {
 	});
 });
 
-//TODO have to handle self like feature
+//TODO have to handle infinite no of request to get many likes
 const userLikeComment = expressAsyncHandler(async (req, res) => {
 	const { comment_id } = req.body;
 	if (!comment_id || typeof comment_id !== 'number') {
@@ -896,6 +1000,24 @@ const userLikeComment = expressAsyncHandler(async (req, res) => {
 	if (affectedRows === 0) throw new Error('Failed to like comment');
 	res.status(200).json({
 		message: 'Successfully liked comment',
+	});
+});
+
+const userRemoveLikeComment = expressAsyncHandler(async (req, res) => {
+	const { comment_id } = req.body;
+	if (!comment_id || typeof comment_id !== 'number') {
+		res.status(400).json({
+			message: 'comment_id is missing or of wrong datatype',
+		});
+		return;
+	}
+	const [{ affectedRows }] = await pool.query(
+		`UPDATE comments SET no_of_likes = no_of_likes - 1 WHERE comment_id = ?`,
+		[comment_id]
+	);
+	if (affectedRows === 0) throw new Error('Failed to remove like comment');
+	res.status(200).json({
+		message: 'Successfully removed like from comment',
 	});
 });
 
@@ -939,4 +1061,7 @@ export {
 	userAddComment,
 	userLikeComment,
 	userGetNotifications,
+	userAddReviewFacility,
+	userHandleNotificationStatus,
+	userRemoveLikeComment,
 };

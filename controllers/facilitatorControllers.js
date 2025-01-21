@@ -111,6 +111,12 @@ const facilitatorAddFacility = expressAsyncHandler(async (req, res, next) => {
 });
 
 const facilitatorFacilityImage = expressAsyncHandler(async (req, res) => {
+	if (req.files.length === 0) {
+		res.status(400).json({
+			message: 'No file uploaded. Please attach a file.',
+		});
+		return;
+	}
 	const { facility_id } = req.body;
 	const { filePaths } = req;
 	if (!facility_id) {
@@ -846,9 +852,24 @@ const facilityEdit = expressAsyncHandler(async (req, res) => {
 		connection.release();
 		throw new Error('Failed to update facility');
 	}
-	//TODO have to include array of allowed weeks to prevent SQL injection and all the weekdays are proper
+	const allowedWeeks = [
+		'saturday',
+		'sunday',
+		'tuesday',
+		'thursday',
+		'friday',
+		'wednesday',
+	];
 	for (const [index, day] of available_hours.entries()) {
 		const { week_day, start_time, end_time, available } = day;
+		if (!allowedWeeks.includes(week_day)) {
+			await connection.rollback();
+			connection.release();
+			res.status(400).json({
+				message: `Invalid weekday: ${week_day}`,
+			});
+			return;
+		}
 		if (!validateTimeStamp(start_time) || !validateTimeStamp(end_time)) {
 			await connection.rollback();
 			connection.release();
