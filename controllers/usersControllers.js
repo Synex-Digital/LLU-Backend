@@ -953,6 +953,41 @@ const userFollow = expressAsyncHandler(async (req, res) => {
 	});
 });
 
+const userUnfollow = expressAsyncHandler(async (req, res) => {
+	const { user_id } = req.body;
+	const { user } = req;
+	if (!user_id || !user.user_id || typeof user_id !== 'number') {
+		res.status(400).json({
+			message: 'User id is missing',
+		});
+		return;
+	}
+	const [[followAvailable]] = await pool.query(
+		`SELECT * FROM follows WHERE follower_user_id = ? AND followed_user_id = ?`,
+		[user.user_id, user_id]
+	);
+	if (!followAvailable) {
+		res.status(400).json({
+			message: 'This user does not follow the user with user_id',
+		});
+		return;
+	}
+	const [{ affectedRows }] = await pool.query(
+		`DELETE 
+		FROM 
+			follows 
+		WHERE 
+			follower_user_id = ?
+		AND
+			followed_user_id = ?`,
+		[user.user_id, user_id]
+	);
+	if (affectedRows === 0) throw new Error('Failed to unfollow');
+	res.status(200).json({
+		message: 'Successfully unfollowed user',
+	});
+});
+
 const userAddComment = expressAsyncHandler(async (req, res) => {
 	const { post_id } = req.body;
 	const { user_id } = req.user;
@@ -1065,4 +1100,5 @@ export {
 	userAddReviewFacility,
 	userHandleNotificationStatus,
 	userRemoveLikeComment,
+	userUnfollow,
 };

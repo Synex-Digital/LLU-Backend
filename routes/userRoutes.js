@@ -23,6 +23,7 @@ import {
 	userGetNotifications,
 	userHandleNotificationStatus,
 	userRemoveLikeComment,
+	userUnfollow,
 } from '../controllers/usersControllers.js';
 import {
 	uploadMultiple,
@@ -69,6 +70,8 @@ userRouter.route('/like').post(protect, userLikePost);
 userRouter.route('/remove_like').delete(protect, userRemoveLikePost);
 
 userRouter.route('/follow').post(protect, userFollow);
+
+userRouter.route('/unfollow').delete(protect, userUnfollow);
 
 userRouter.route('/comment').post(protect, userAddComment);
 
