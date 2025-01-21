@@ -453,6 +453,7 @@ const userProfile = expressAsyncHandler(async (req, res, next) => {
 	);
 	req.userProfile = {
 		user,
+		own_profile: req.user.user_id === user_id,
 		followed,
 		follower_no,
 		following_no,
