@@ -702,6 +702,17 @@ const userCreateChat = expressAsyncHandler(async (req, res) => {
 		});
 		return;
 	}
+	const [[availableUser]] = await pool.query(
+		`SELECT * FROM users WHERE user_id = ?`,
+		[user_id]
+	);
+	console.log(availableUser);
+	if (!availableUser) {
+		res.status(400).json({
+			message: 'User does not exist for provided user_id',
+		});
+		return;
+	}
 	const { user } = req;
 	if (parseInt(user_id) === user.user_id) {
 		res.status(403).json({

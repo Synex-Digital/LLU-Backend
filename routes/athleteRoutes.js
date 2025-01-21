@@ -3,6 +3,7 @@ import { protect } from '../middleware/authMiddleware.js';
 import {
 	athleteAddFavoriteTrainer,
 	athleteCheck,
+	athleteEditProfile,
 	athleteFavoriteTrainer,
 	athleteFeaturedTrainer,
 	athleteFilterTrainer,
@@ -76,7 +77,8 @@ athleteRouter
 		trainerAvailability,
 		facilitySuggestions,
 		trainerReviews
-	);
+	)
+	.patch(protect, athleteCheck, uploadFile, uploadToS3, athleteEditProfile);
 
 athleteRouter
 	.route('/add_review_trainer')

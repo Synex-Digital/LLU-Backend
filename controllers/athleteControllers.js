@@ -257,6 +257,57 @@ const athleteFilterTrainer = expressAsyncHandler(async (req, res) => {
 	});
 });
 
+const athleteEditProfile = expressAsyncHandler(async (req, res) => {
+	const { user_id } = req.user;
+	const {
+		latitude,
+		longitude,
+		short_description,
+		first_name,
+		last_name,
+		img,
+	} = req.body;
+	if (
+		!latitude ||
+		!longitude ||
+		!short_description ||
+		!first_name ||
+		!last_name ||
+		!img
+	) {
+		res.status(400).json({
+			message: 'Missing attributes',
+		});
+		return;
+	}
+	const [{ affectedRows }] = await pool.query(
+		`UPDATE
+			users
+		SET
+			latitude = ?,
+			longitude = ?,
+			short_description = ?,
+			first_name = ?,
+			last_name = ?,
+			img = ?
+		WHERE
+			user_id = ?`,
+		[
+			latitude,
+			longitude,
+			short_description,
+			first_name,
+			last_name,
+			req.filePath,
+			user_id,
+		]
+	);
+	if (affectedRows === 0) throw new Error('Failed to update profile');
+	res.status(200).json({
+		message: 'Successfully updated athlete profile',
+	});
+});
+
 //TODO have to add facility favorites too
 const athleteFavoriteTrainer = expressAsyncHandler(async (req, res) => {
 	let { page, limit } = req.query;
@@ -419,4 +470,5 @@ export {
 	athleteTopTrainer,
 	athleteNearbyFacilities,
 	athleteAddFavoriteTrainer,
+	athleteEditProfile,
 };
