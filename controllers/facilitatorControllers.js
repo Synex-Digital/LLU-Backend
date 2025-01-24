@@ -67,21 +67,21 @@ const facilitatorAddFacility = expressAsyncHandler(async (req, res, next) => {
 
 	for (const [index, day] of available_hours.entries()) {
 		const { week_day, start_time, end_time, available } = day;
-		if (!validateTimeStamp(start_time) || !validateTimeStamp(end_time)) {
-			await connection.rollback();
-			connection.release();
+		if (!start_time || !!isNaN(Date.parse(start_time))) {
 			res.status(400).json({
-				message: `Invalid start_time or end_time format at ${week_day}`,
+				message: `Invalid or missing start_time at ${week_day}`,
 			});
 			return;
 		}
-		const startTime = new Date(start_time);
-		const endTime = new Date(end_time);
-		if (startTime > endTime) {
-			await connection.rollback();
-			connection.release();
+		if (!end_time && !!isNaN(Date.parse(end_time))) {
 			res.status(400).json({
-				message: `start_time can not be smaller than end_time at ${week_day}`,
+				message: `Invalid or missing end_time at ${week_day}`,
+			});
+			return;
+		}
+		if (new Date(start_time) >= new Date(end_time)) {
+			res.status(400).json({
+				message: 'start_date must be earlier than end_date',
 			});
 			return;
 		}

@@ -278,7 +278,7 @@ const athleteRegister = async (req, res, user_id) => {
 	});
 };
 
-const trainerRegister = async (req, res, user_id) => {
+const trainerRegister = async (req, res, next, user_id) => {
 	const {
 		hourly_rate,
 		specialization,
@@ -310,7 +310,9 @@ const trainerRegister = async (req, res, user_id) => {
 		});
 		return;
 	}
-	const [updateStatus] = await pool.query(
+	const connection = await pool.getConnection();
+	await connection.beginTransaction();
+	const [updateStatus] = await connection.query(
 		`UPDATE 
 			users
 		SET
@@ -320,16 +322,24 @@ const trainerRegister = async (req, res, user_id) => {
 		WHERE user_id = ?`,
 		['trainer', latitude, longitude, user_id]
 	);
-	if (updateStatus.affectedRows === 0) throw new Error('User update failed');
-	const [insertStatus] = await pool.query(
+	if (updateStatus.affectedRows === 0) {
+		await connection.rollback();
+		connection.release();
+		throw new Error('User update failed');
+	}
+	const [insertStatus] = await connection.query(
 		`INSERT INTO trainers (user_id, hourly_rate, specialization, specialization_level, gender) VALUES (?, ?, ?, ?, ?)`,
 		[user_id, hourly_rate, specialization, specialization_level, gender]
 	);
-	if (insertStatus.affectedRows === 0)
+	if (insertStatus.affectedRows === 0) {
+		await connection.rollback();
+		connection.release();
 		throw new Error('Specialized user creation failed');
-	res.status(201).json({
-		message: 'Specialized user created successfully',
-	});
+	}
+	req.transactionConnection = connection;
+	req.trainer_id = insertStatus.insertId;
+	req.msg = 'Specialized user created successfully';
+	next();
 };
 
 const facilitatorRegister = async (req, res, user_id) => {
@@ -443,11 +453,11 @@ const parentRegister = async (req, res, user_id) => {
 	});
 };
 
-const specifiedRegister = expressAsyncHandler(async (req, res) => {
+const specifiedRegister = expressAsyncHandler(async (req, res, next) => {
 	const { type, user_id } = req.body;
-	if (!type || !user_id) {
+	if (!type || !user_id || typeof user_id !== 'number') {
 		res.status(400).json({
-			message: 'Missing type or user_id',
+			message: 'Missing type or user_id or of wrong datatype',
 		});
 		return;
 	}
@@ -465,7 +475,7 @@ const specifiedRegister = expressAsyncHandler(async (req, res) => {
 			await athleteRegister(req, res, user_id);
 			return;
 		case 'trainer':
-			await trainerRegister(req, res, user_id);
+			await trainerRegister(req, res, next, user_id);
 			return;
 		case 'facilitator':
 			await facilitatorRegister(req, res, user_id);

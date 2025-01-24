@@ -20,6 +20,7 @@ import {
 	passwordCompare,
 	passwordHash,
 } from '../middleware/passwordHashMiddleware.js';
+import { trainerAddAvailabilityHours } from '../controllers/trainerControllers.js';
 
 const authRouter = Router();
 
@@ -56,6 +57,8 @@ authRouter
 	.route('/reset_password')
 	.post(authOTPVerify, passwordHash, authResetPassword);
 
-authRouter.route('/register_special_user').post(specifiedRegister);
+authRouter
+	.route('/register_special_user')
+	.post(specifiedRegister, trainerAddAvailabilityHours);
 
 export { authRouter };

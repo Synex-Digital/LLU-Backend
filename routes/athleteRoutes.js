@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { protect } from '../middleware/authMiddleware.js';
 import {
 	athleteAddFavoriteTrainer,
+	athleteAppointments,
 	athleteCheck,
 	athleteEditProfile,
 	athleteFavoriteTrainer,
@@ -74,7 +75,7 @@ athleteRouter
 
 athleteRouter
 	.route('/trainer_profile')
-	.get(
+	.post(
 		protect,
 		athleteCheck,
 		trainerProfile,
@@ -102,5 +103,9 @@ athleteRouter
 		athleteFacilityImages,
 		athleteFacilityReviews
 	);
+
+athleteRouter
+	.route('/appointments')
+	.get(protect, athleteCheck, athleteAppointments);
 
 export { athleteRouter };

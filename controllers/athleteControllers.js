@@ -4,6 +4,7 @@ import { arrayCompare } from '../utilities/arrayCompare.js';
 
 const athleteFeaturedTrainer = expressAsyncHandler(async (req, res, next) => {
 	let { page, limit } = req.query;
+	const { user_id } = req.user;
 	const { latitude, longitude } = req.body;
 	if (!latitude || !longitude) {
 		res.status(400).json({
@@ -24,13 +25,20 @@ const athleteFeaturedTrainer = expressAsyncHandler(async (req, res, next) => {
 			t.specialization,
 			t.specialization_level,
 			t.hourly_rate,
-			COALESCE(AVG(r.rating), 0) AS avg_rating
+			COALESCE(AVG(r.rating), 0) AS avg_rating,
+			CASE 
+				WHEN ft.trainer_id IS NOT NULL THEN 1
+				ELSE 0
+			END AS is_favorite
 		FROM
 			users u
 		INNER JOIN
-			trainers t
+			trainers t ON u.user_id = t.user_id
 		LEFT JOIN
 			review_trainer r ON t.trainer_id = r.trainer_id
+		LEFT JOIN
+			favorite_trainer ft ON t.trainer_id = ft.trainer_id
+								AND ft.user_id = ?
 		WHERE 
 			ST_Distance_Sphere(
 				POINT(u.longitude, u.latitude),
@@ -40,8 +48,8 @@ const athleteFeaturedTrainer = expressAsyncHandler(async (req, res, next) => {
 			t.trainer_id
 		ORDER BY
 			no_of_students DESC
-		LIMIT ? OFFSET ?;`,
-		[longitude, latitude, limit, offset]
+		LIMIT ? OFFSET ?`,
+		[user_id, longitude, latitude, limit, offset]
 	);
 	req.featuredTrainer = featuredTrainer;
 	next();
@@ -515,6 +523,55 @@ const athleteUpcomingSessions = expressAsyncHandler(async (req, res) => {
 	});
 });
 
+const athleteAppointments = expressAsyncHandler(async (req, res) => {
+	const { user_id } = req.user;
+	const [appointments] = await pool.query(
+		`SELECT
+			f.name,
+			f.latitude,
+			f.longitude,
+			f.hourly_rate,
+			COALESCE(AVG(rf.rating), 0) AS avg_rating,
+			CASE 
+				WHEN fs.start_time > NOW() THEN 'upcoming'
+				WHEN fs.start_time <= NOW() AND fs.end_time >= NOW() THEN 'ongoing'
+				ELSE 'completed'
+			END AS session_status,
+			u.first_name,
+			u.last_name,
+			u.img,
+			u.profile_picture
+		FROM
+			facility_sessions fs
+		LEFT JOIN
+			facilities f ON fs.facility_id = f.facility_id
+		LEFT JOIN
+			review_facility rf ON f.facility_id = rf.facility_id
+		LEFT JOIN
+			trainer_sessions ts ON fs.facility_sessions_id = ts.facility_sessions_id
+		LEFT JOIN
+			trainers t ON ts.trainer_id = t.trainer_id
+		LEFT JOIN
+			users u ON t.user_id = u.user_id
+		WHERE
+			fs.user_id = ?
+		GROUP BY
+			fs.facility_sessions_id,
+			f.name,
+			f.latitude,
+			f.longitude,
+			f.hourly_rate
+		ORDER BY
+			fs.start_time`,
+		[user_id]
+	);
+	res.status(200).json({
+		data: {
+			appointments,
+		},
+	});
+});
+
 export {
 	athleteHome,
 	athleteCheck,
@@ -529,4 +586,5 @@ export {
 	athleteAddFavoriteTrainer,
 	athleteEditProfile,
 	athleteFilterFacilities,
+	athleteAppointments,
 };
