@@ -344,34 +344,42 @@ const facilitatorCompletedSessions = expressAsyncHandler(
 		const offset = (page - 1) * limit;
 		const [updateStatus] = await pool.query(
 			`UPDATE
-			facility_sessions
-		SET
-			status = ?
-		WHERE
-			end_time <= NOW()`,
+				facility_sessions
+			SET
+				status = ?
+			WHERE
+				end_time <= NOW()`,
 			['completed']
 		);
 		//TODO completed is undefined
 		const [completedSessions] = await pool.query(
 			`SELECT
-			fs.facility_sessions_id,
-			fa.name,
-			fs.description,
-			fa.latitude,
-			fa.longitude,
-			fs.start_time,
-			fs.end_time
-		FROM
-			facilities fa
-		INNER JOIN
-			facility_sessions fs ON fa.facility_id = fs.facility_id
-		INNER JOIN
-			facilitators f ON fa.facilitator_id = f.facilitator_id
-		WHERE
-			fs.status = ?
-		AND
-			f.user_id = ?
-		LIMIT ? OFFSET ?`,
+				fs.facility_sessions_id,
+				fa.name,
+				fs.description,
+				fa.latitude,
+				fa.longitude,
+				fs.start_time,
+				fs.end_time
+			FROM
+				facilities fa
+			INNER JOIN
+				facility_sessions fs ON fa.facility_id = fs.facility_id
+			INNER JOIN
+				facilitators f ON fa.facilitator_id = f.facilitator_id
+			WHERE
+				fs.status = ?
+			AND
+				f.user_id = ?
+			GROUP BY
+				fs.facility_sessions_id,
+				fa.name,
+				fs.description,
+				fa.latitude,
+				fa.longitude,
+				fs.start_time,
+				fs.end_time
+			LIMIT ? OFFSET ?`,
 			['completed', user_id, limit, offset]
 		);
 		req.completedSessions = completedSessions;

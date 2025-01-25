@@ -1,5 +1,6 @@
 import expressAsyncHandler from 'express-async-handler';
 import { pool } from '../config/db.js';
+import { validateTimeStamp } from '../utilities/DateValidation.js';
 
 //TODO divide the sections of trainer details
 const trainerProfile = expressAsyncHandler(async (req, res, next) => {
@@ -233,6 +234,7 @@ const trainerCheck = expressAsyncHandler(async (req, res, next) => {
 
 const trainerUpcomingSessions = expressAsyncHandler(async (req, res, next) => {
 	let { page, limit } = req.query;
+	const { user_id } = req.user;
 	page = parseInt(page) || 1;
 	limit = parseInt(limit) || 10;
 	const offset = (page - 1) * limit;
@@ -240,6 +242,16 @@ const trainerUpcomingSessions = expressAsyncHandler(async (req, res, next) => {
 	if (!trainer_id || typeof trainer_id !== 'number') {
 		res.status(400).json({
 			message: 'Trainer id is missing or of wrong datatype',
+		});
+		return;
+	}
+	const [[available]] = await pool.query(
+		`SELECT * FROM trainers WHERE user_id = ? AND trainer_id = ?`,
+		[user_id, trainer_id]
+	);
+	if (!available) {
+		res.status(403).json({
+			message: 'Do not have permission to access',
 		});
 		return;
 	}
@@ -270,9 +282,6 @@ const trainerUpcomingSessions = expressAsyncHandler(async (req, res, next) => {
 });
 
 const trainerHomeStats = expressAsyncHandler(async (req, res, next) => {
-	let { page, limit } = req.query;
-	page = parseInt(page) || 1;
-	limit = parseInt(limit) || 10;
 	const { trainer_id } = req.body;
 	const [statistics] = await pool.query(
 		`SELECT
@@ -290,12 +299,39 @@ const trainerHomeStats = expressAsyncHandler(async (req, res, next) => {
 			month;`,
 		[trainer_id]
 	);
+	req.statistics = statistics;
+	next();
+});
+
+const trainerProfileCompletion = expressAsyncHandler(async (req, res) => {
+	let { page, limit } = req.query;
+	page = parseInt(page) || 1;
+	limit = parseInt(limit) || 10;
+	const { trainer_id } = req.body;
+	let totalCount = 6,
+		mandatory = 9;
+	const [certificate] = await pool.query(
+		`SELECT * FROM certificates WHERE trainer_id = ?`,
+		[trainer_id]
+	);
+	if (certificate.length !== 0) totalCount++;
+	const [education] = await pool.query(
+		`SELECT * FROM educations WHERE trainer_id = ?`,
+		[trainer_id]
+	);
+	if (education.length !== 0) totalCount++;
+	const [experience] = await pool.query(
+		`SELECT * FROM experiences WHERE trainer_id = ?`,
+		[trainer_id]
+	);
+	if (experience.length !== 0) totalCount++;
 	res.status(200).json({
 		page,
 		limit,
 		data: {
 			upcomingSessions: req.upcomingSessions,
-			statistics,
+			statistics: req.statistics,
+			profileCompletion: (totalCount / mandatory) * 100,
 		},
 	});
 });
@@ -471,6 +507,47 @@ const trainerGetExperience = expressAsyncHandler(async (req, res) => {
 	});
 });
 
+const trainerIndividualExperience = expressAsyncHandler(async (req, res) => {
+	const { experience_id } = req.body;
+	const { user_id } = req.user;
+	if (!experience_id || typeof experience_id !== 'number') {
+		res.status(400).json({
+			message: 'Experience id is missing or of wrong type',
+		});
+		return;
+	}
+	const [[{ trainer_id }]] = await pool.query(
+		`SELECT	trainer_id FROM trainers WHERE user_id = ?`,
+		[user_id]
+	);
+	const [[experience]] = await pool.query(
+		`SELECT 
+			designation,
+			company_name,
+			job_type,
+			start_date,
+			end_date
+		FROM
+			experiences
+		WHERE
+			experience_id = ?
+		AND
+			trainer_id = ?`,
+		[experience_id, trainer_id]
+	);
+	if (!experience) {
+		res.status(400).json({
+			message: 'Invalid experience id',
+		});
+		return;
+	}
+	res.status(200).json({
+		data: {
+			experience,
+		},
+	});
+});
+
 const trainerAddCertificate = expressAsyncHandler(async (req, res) => {
 	const { user_id, title, organization, start_date, end_date } = req.body;
 	if (
@@ -596,6 +673,46 @@ const trainerGetCertificates = expressAsyncHandler(async (req, res) => {
 	res.status(200).json({
 		data: {
 			certificates,
+		},
+	});
+});
+
+const trainerIndividualCertificate = expressAsyncHandler(async (req, res) => {
+	const { certificate_id } = req.body;
+	const { user_id } = req.user;
+	if (!certificate_id || typeof certificate_id !== 'number') {
+		res.status(400).json({
+			message: 'Experience id is missing or of wrong type',
+		});
+		return;
+	}
+	const [[{ trainer_id }]] = await pool.query(
+		`SELECT	trainer_id FROM trainers WHERE user_id = ?`,
+		[user_id]
+	);
+	const [[certificate]] = await pool.query(
+		`SELECT 
+			title,
+			organization,
+			start_date,
+			end_date
+		FROM
+			certificates
+		WHERE
+			certificate_id = ?
+		AND
+			trainer_id = ?`,
+		[certificate_id, trainer_id]
+	);
+	if (!certificate) {
+		res.status(400).json({
+			message: 'Invalid certificate id',
+		});
+		return;
+	}
+	res.status(200).json({
+		data: {
+			certificate,
 		},
 	});
 });
@@ -772,6 +889,47 @@ const trainerGetEducation = expressAsyncHandler(async (req, res) => {
 	});
 });
 
+const trainerIndividualEducation = expressAsyncHandler(async (req, res) => {
+	const { education_id } = req.body;
+	const { user_id } = req.user;
+	if (!education_id || typeof education_id !== 'number') {
+		res.status(400).json({
+			message: 'Experience id is missing or of wrong type',
+		});
+		return;
+	}
+	const [[{ trainer_id }]] = await pool.query(
+		`SELECT	trainer_id FROM trainers WHERE user_id = ?`,
+		[user_id]
+	);
+	const [[education]] = await pool.query(
+		`SELECT 
+			course_name,
+			institute_name,
+			study_status,
+			start_date,
+			end_date
+		FROM
+			educations
+		WHERE
+			education_id = ?
+		AND
+			trainer_id = ?`,
+		[education_id, trainer_id]
+	);
+	if (!education) {
+		res.status(400).json({
+			message: 'Invalid education id',
+		});
+		return;
+	}
+	res.status(200).json({
+		data: {
+			education,
+		},
+	});
+});
+
 const trainerEnsure = expressAsyncHandler(async (req, res, next) => {
 	const { trainer_id } = req.body;
 	const { user_id } = req.user;
@@ -782,6 +940,335 @@ const trainerEnsure = expressAsyncHandler(async (req, res, next) => {
 	if (!available) {
 		res.status(403).json({
 			message: 'Do not have permission to view',
+		});
+		return;
+	}
+	next();
+});
+
+const trainerEditProfile = expressAsyncHandler(async (req, res) => {
+	const { user_id } = req.user;
+	const {
+		first_name,
+		last_name,
+		hourly_rate,
+		availability,
+		short_description,
+		latitude,
+		longitude,
+	} = req.body;
+	if (
+		(!first_name && typeof first_name !== 'string') ||
+		(!last_name && typeof last_name !== 'string') ||
+		(!short_description && typeof short_description !== 'string') ||
+		(!hourly_rate && typeof hourly_rate !== 'number') ||
+		(!availability &&
+			!Array.isArray(availability) &&
+			availability.length !== 0 &&
+			availability.length < 7) ||
+		(!latitude && typeof latitude !== 'number') ||
+		(!longitude && typeof longitude !== 'number')
+	) {
+		res.status(400).json({
+			message: 'Missing attributes or of wrong datatype',
+		});
+		return;
+	}
+	const allowedWeeks = [
+		'saturday',
+		'sunday',
+		'monday',
+		'tuesday',
+		'wednesday',
+		'thursday',
+		'friday',
+	];
+
+	for (const [index, day] of availability.entries()) {
+		const { week_day, start_time, end_time, available } = day;
+
+		if (!allowedWeeks.includes(week_day)) {
+			res.status(400).json({
+				message: `Invalid weekday: ${week_day}`,
+			});
+			return;
+		}
+
+		if (!validateTimeStamp(start_time) || !validateTimeStamp(end_time)) {
+			res.status(400).json({
+				message: `Invalid start_time or end_time format at ${week_day}`,
+			});
+			return;
+		}
+
+		const startTime = start_time
+			? new Date(`1970-01-01T${start_time}`)
+			: null;
+		const endTime = end_time ? new Date(`1970-01-01T${end_time}`) : null;
+
+		if (startTime && endTime && startTime >= endTime) {
+			res.status(400).json({
+				message: `start_time cannot be later than or equal to end_time at ${week_day}`,
+			});
+			return;
+		}
+
+		if (available !== 1 && available !== 0) {
+			res.status(400).json({
+				message: `Invalid available at ${week_day}`,
+			});
+			return;
+		}
+		if (
+			(!startTime && !endTime && available === 1) ||
+			(startTime && endTime && available === 0)
+		) {
+			res.status(400).json({
+				message: `Invalid structure at ${week_day}`,
+			});
+			return;
+		}
+	}
+
+	const [[{ trainer_id }]] = await pool.query(
+		`SELECT	trainer_id FROM trainers WHERE user_id = ?`,
+		[user_id]
+	);
+	const connection = await pool.getConnection();
+	await connection.beginTransaction();
+	const [{ affectedRows }] = await connection.query(
+		`DELETE FROM trainer_availability_hours WHERE trainer_id = ?`,
+		[trainer_id]
+	);
+	if (affectedRows === 0) {
+		await connection.rollback();
+		connection.release();
+		throw new Error('Failed to delete trainer availability');
+	}
+	for (const [index, day] of availability.entries()) {
+		const { week_day, start_time, end_time, available } = day;
+		const [{ affectedRows }] = await connection.query(
+			`INSERT INTO trainer_availability_hours (week_day, start_time, end_time, available, trainer_id) VALUES (?, ?, ?, ?, ?)`,
+			[week_day, start_time, end_time, available, trainer_id]
+		);
+		if (affectedRows === 0) {
+			await connection.rollback();
+			connection.release();
+			throw new Error('Failed to delete trainer availability');
+		}
+	}
+	const [updateStatus] = await connection.query(
+		`UPDATE
+			users
+		SET
+			first_name = ?,
+			last_name = ?,
+			short_description = ?,
+			latitude = ?,
+			longitude = ?
+		WHERE
+			user_id = ?`,
+		[first_name, last_name, short_description, latitude, longitude, user_id]
+	);
+	if (updateStatus.affectedRows === 0) {
+		await connection.rollback();
+		connection.release();
+		throw new Error('Failed to update user info');
+	}
+	const [rateUpdateStatus] = await connection.query(
+		`UPDATE
+			trainers
+		SET
+			hourly_rate = ?
+		WHERE
+			trainer_id = ?`,
+		[hourly_rate, trainer_id]
+	);
+	if (rateUpdateStatus.affectedRows === 0) {
+		await connection.rollback();
+		connection.release();
+		throw new Error('Failed to update trainer info');
+	}
+	await connection.commit();
+	connection.release();
+	res.status(200).json({
+		message: 'Successfully updated trainer profile',
+	});
+});
+
+const trainerEditProfileImage = expressAsyncHandler(async (req, res) => {
+	const { user_id } = req.user;
+	if (!req.filePath) {
+		res.status(400).json({
+			message: 'Failed to upload image',
+		});
+		return;
+	}
+	const [{ affectedRows }] = await pool.query(
+		`UPDATE
+			users
+		SET
+			img = ?
+		WHERE
+			user_id = ?`,
+		[req.filePath, user_id]
+	);
+	if (affectedRows === 0) throw new Error('Failed to upload profile image');
+	res.status(200).json({
+		message: 'Successfully added profile image',
+	});
+});
+
+const trainerOngoingSessions = expressAsyncHandler(async (req, res, next) => {
+	const { user_id } = req.user;
+	let { page, limit } = req.query;
+	page = parseInt(page) || 1;
+	limit = parseInt(limit) || 10;
+	const offset = (page - 1) * limit;
+	const [updateStatus] = await pool.query(
+		`UPDATE
+				facility_sessions
+			SET
+				status = ?
+			WHERE
+				status = 'upcoming'
+			AND
+				start_time <= NOW()
+			AND
+				end_time > NOW()`,
+		['ongoing']
+	);
+	const [[{ trainer_id }]] = await pool.query(
+		`SELECT	trainer_id FROM trainers WHERE user_id = ?`,
+		[user_id]
+	);
+	const [ongoingSessions] = await pool.query(
+		`SELECT
+				fs.facility_sessions_id,
+				fa.name,
+				fs.description,
+				fa.latitude,
+				fa.longitude,
+				fs.start_time,
+				fs.end_time
+			FROM
+				trainer_sessions ts
+			INNER JOIN
+				facility_sessions fs ON ts.facility_sessions_id = fs.facility_sessions_id
+			LEFT JOIN
+				facilities fa ON fs.facility_id = fa.facility_id
+			WHERE
+				fs.status = ?
+			AND
+				ts.trainer_id = ?
+			GROUP BY
+				fs.facility_sessions_id,
+				fa.name,
+				fs.description,
+				fa.latitude,
+				fa.longitude,
+				fs.start_time,
+				fs.end_time
+			LIMIT ? OFFSET ?`,
+		['ongoing', trainer_id, limit, offset]
+	);
+	req.ongoingSessions = ongoingSessions;
+	next();
+});
+
+const trainerCompletedSessions = expressAsyncHandler(async (req, res, next) => {
+	const { user_id } = req.user;
+	let { page, limit } = req.query;
+	page = parseInt(page) || 1;
+	limit = parseInt(limit) || 10;
+	const offset = (page - 1) * limit;
+	const [updateStatus] = await pool.query(
+		`UPDATE
+				facility_sessions
+			SET
+				status = ?
+			WHERE
+				end_time <= NOW()`,
+		['completed']
+	);
+	const [[{ trainer_id }]] = await pool.query(
+		`SELECT	trainer_id FROM trainers WHERE user_id = ?`,
+		[user_id]
+	);
+	const [completedSessions] = await pool.query(
+		`SELECT
+				fs.facility_sessions_id,
+				f.name,
+				fs.description,
+				f.latitude,
+				f.longitude,
+				fs.start_time,
+				fs.end_time
+			FROM
+				trainer_sessions ts
+			INNER JOIN
+				facility_sessions fs ON ts.facility_sessions_id = fs.facility_sessions_id
+			LEFT JOIN
+				facilities f ON fs.facility_id = f.facility_id
+			WHERE
+				fs.status = ?
+			AND
+				ts.trainer_id = ?
+			GROUP BY
+				fs.facility_sessions_id,
+				f.name,
+				fs.description,
+				f.latitude,
+				f.longitude,
+				fs.start_time,
+				fs.end_time
+			LIMIT ? OFFSET ?`,
+		['completed', trainer_id, limit, offset]
+	);
+	req.completedSessions = completedSessions;
+	next();
+});
+
+const trainerSessionsServe = expressAsyncHandler(async (req, res) => {
+	let { page, limit } = req.query;
+	page = parseInt(page) || 1;
+	limit = parseInt(limit) || 10;
+	res.status(200).json({
+		page,
+		limit,
+		ongoingSessions: req.ongoingSessions,
+		upcomingSessions: req.upcomingSessions,
+		completedSessions: req.completedSessions,
+	});
+});
+
+const trainerSessionCheck = expressAsyncHandler(async (req, res, next) => {
+	const { session_id } = req.body;
+	const { user_id } = req.user;
+	if (!session_id || typeof session_id !== 'number') {
+		res.status(400).json({
+			message: 'Session id is missing or of wrong datatype',
+		});
+		return;
+	}
+	const [[{ trainer_id }]] = await pool.query(
+		`SELECT	trainer_id FROM trainers WHERE user_id = ?`,
+		[user_id]
+	);
+	const [[available]] = await pool.query(
+		`SELECT
+			*
+		FROM
+			facility_sessions fs
+		INNER JOIN
+			trainer_sessions ts ON fs.facility_sessions_id = ts.facility_sessions_id
+		WHERE
+			trainer_id = ?`,
+		[trainer_id]
+	);
+	if (!available) {
+		res.status(403).json({
+			message: 'Do not have permission to access',
 		});
 		return;
 	}
@@ -807,4 +1294,14 @@ export {
 	trainerEditEducation,
 	trainerGetEducation,
 	trainerEnsure,
+	trainerEditProfile,
+	trainerEditProfileImage,
+	trainerProfileCompletion,
+	trainerOngoingSessions,
+	trainerCompletedSessions,
+	trainerSessionsServe,
+	trainerSessionCheck,
+	trainerIndividualExperience,
+	trainerIndividualCertificate,
+	trainerIndividualEducation,
 };

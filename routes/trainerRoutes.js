@@ -7,19 +7,34 @@ import {
 	trainerAddExperience,
 	trainerAvailability,
 	trainerCheck,
+	trainerCompletedSessions,
 	trainerEditCertificate,
 	trainerEditEducation,
 	trainerEditExperience,
+	trainerEditProfile,
+	trainerEditProfileImage,
 	trainerEnsure,
 	trainerGetCertificates,
 	trainerGetEducation,
 	trainerGetExperience,
 	trainerHomeStats,
+	trainerIndividualCertificate,
+	trainerIndividualEducation,
+	trainerIndividualExperience,
+	trainerOngoingSessions,
 	trainerProfile,
+	trainerProfileCompletion,
 	trainerReviews,
+	trainerSessionCheck,
+	trainerSessionsServe,
 	trainerStatistics,
 	trainerUpcomingSessions,
 } from '../controllers/trainerControllers.js';
+import { uploadFile, uploadToS3 } from '../middleware/uploadMiddleware.js';
+import {
+	facilitySessionDetails,
+	facilitySessionTrainer,
+} from '../controllers/facilitatorControllers.js';
 
 const trainerRouter = Router();
 
@@ -29,7 +44,13 @@ trainerRouter
 
 trainerRouter
 	.route('/home')
-	.post(protect, trainerCheck, trainerUpcomingSessions, trainerHomeStats);
+	.post(
+		protect,
+		trainerCheck,
+		trainerUpcomingSessions,
+		trainerHomeStats,
+		trainerProfileCompletion
+	);
 
 trainerRouter
 	.route('/experience')
@@ -38,16 +59,28 @@ trainerRouter
 	.get(protect, trainerCheck, trainerGetExperience);
 
 trainerRouter
+	.route('/individual_experience')
+	.post(protect, trainerCheck, trainerIndividualExperience);
+
+trainerRouter
 	.route('/certificate')
 	.post(trainerAddCertificate)
 	.patch(protect, trainerCheck, trainerEditCertificate)
 	.get(protect, trainerCheck, trainerGetCertificates);
 
 trainerRouter
+	.route('/individual_certificate')
+	.post(protect, trainerCheck, trainerIndividualCertificate);
+
+trainerRouter
 	.route('/education')
 	.post(trainerAddEducation)
 	.patch(protect, trainerCheck, trainerEditEducation)
 	.get(protect, trainerCheck, trainerGetEducation);
+
+trainerRouter
+	.route('/individual_education')
+	.post(protect, trainerCheck, trainerIndividualEducation);
 
 trainerRouter
 	.route('/profile')
@@ -59,6 +92,38 @@ trainerRouter
 		trainerStatistics,
 		trainerAvailability,
 		trainerReviews
+	)
+	.patch(protect, trainerCheck, trainerEditProfile);
+
+trainerRouter
+	.route('/profile_img')
+	.patch(
+		protect,
+		trainerCheck,
+		uploadFile,
+		uploadToS3,
+		trainerEditProfileImage
+	);
+
+trainerRouter
+	.route('/sessions')
+	.post(
+		protect,
+		trainerCheck,
+		trainerOngoingSessions,
+		trainerCompletedSessions,
+		trainerUpcomingSessions,
+		trainerSessionsServe
+	);
+
+trainerRouter
+	.route('/individual_session')
+	.post(
+		protect,
+		trainerCheck,
+		trainerSessionCheck,
+		facilitySessionDetails,
+		facilitySessionTrainer
 	);
 
 export { trainerRouter };
