@@ -13,6 +13,7 @@ import { userRouter } from './routes/userRoutes.js';
 import { socketInitialize } from './realtime/socket.js';
 import { exec } from 'child_process';
 import { trainerRouter } from './routes/trainerRoutes.js';
+import { parentRouter } from './routes/parentRouter.js';
 
 dotenv.config();
 const app = express();
@@ -35,6 +36,7 @@ app.use('/api/athlete', athleteRouter);
 app.use('/api/facilitator', facilitatorRouter);
 app.use('/api/trainer', trainerRouter);
 app.use('/api/user', userRouter);
+app.use('/api/parent', parentRouter);
 
 //! remove after testing
 app.get('/', async (req, res) => {

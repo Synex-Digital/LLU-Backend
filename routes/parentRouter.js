@@ -1,17 +1,21 @@
 import { Router } from 'express';
 import { protect } from '../middleware/authMiddleware.js';
 import {
+	parentAddChildren,
+	parentCheck,
+	parentChildrenInfo,
+	parentEditChildren,
+	parentGetIndividualChildren,
+	parentHome,
+} from '../controllers/parentController.js';
+import {
 	athleteAddFavoriteFacility,
 	athleteAddFavoriteTrainer,
 	athleteAppointments,
-	athleteCheck,
-	athleteEditProfile,
 	athleteFavoriteTrainer,
-	athleteFeaturedTrainer,
 	athleteFilterFacilities,
 	athleteFilterTrainer,
 	athleteGetFavoriteFacility,
-	athleteHome,
 	athleteNearbyFacilities,
 	athleteProfile,
 	athleteRemoveFavoriteFacility,
@@ -26,12 +30,6 @@ import {
 	trainerStatistics,
 } from '../controllers/trainerControllers.js';
 import {
-	userAddReview,
-	userAddReviewFacility,
-	userAddReviewImg,
-} from '../controllers/usersControllers.js';
-import { uploadFile, uploadToS3 } from '../middleware/uploadMiddleware.js';
-import {
 	athleteFacilityDetails,
 	athleteFacilityEmployees,
 	athleteFacilityImages,
@@ -39,62 +37,79 @@ import {
 	facilitySuggestions,
 } from '../controllers/facilitatorControllers.js';
 
-const athleteRouter = Router();
+const parentRouter = Router();
 
-athleteRouter
+parentRouter
 	.route('/home')
 	.post(
 		protect,
-		athleteCheck,
-		athleteFeaturedTrainer,
+		parentCheck,
 		athleteTopTrainer,
 		athleteNearbyFacilities,
-		athleteHome
+		parentHome
 	);
 
-athleteRouter
+parentRouter
 	.route('/search_trainer')
-	.post(protect, athleteCheck, athleteFilterTrainer);
+	.post(protect, parentCheck, athleteFilterTrainer);
 
-athleteRouter
+parentRouter
 	.route('/search_facility')
-	.post(protect, athleteCheck, athleteFilterFacilities);
+	.post(protect, parentCheck, athleteFilterFacilities);
 
-athleteRouter
+parentRouter
 	.route('/favorites')
 	.get(
 		protect,
-		athleteCheck,
+		parentCheck,
 		athleteGetFavoriteFacility,
 		athleteFavoriteTrainer
 	);
 
-athleteRouter
+parentRouter
 	.route('/add_favorite_trainer')
-	.post(protect, athleteCheck, athleteAddFavoriteTrainer);
+	.post(protect, parentCheck, athleteAddFavoriteTrainer);
 
-athleteRouter
+parentRouter
 	.route('/remove_favorite_trainer')
-	.delete(protect, athleteCheck, athleteRemoveFavoriteTrainer);
+	.delete(protect, parentCheck, athleteRemoveFavoriteTrainer);
 
-athleteRouter
-	.route('/add_favorite_facility')
-	.post(protect, athleteCheck, athleteAddFavoriteFacility);
-
-athleteRouter
+parentRouter
 	.route('/remove_favorite_facility')
-	.delete(protect, athleteCheck, athleteRemoveFavoriteFacility);
+	.delete(protect, parentCheck, athleteRemoveFavoriteFacility);
 
-athleteRouter
+parentRouter
+	.route('/add_favorite_facility')
+	.post(protect, parentCheck, athleteAddFavoriteFacility);
+
+parentRouter
+	.route('/appointments')
+	.get(protect, parentCheck, athleteAppointments);
+
+parentRouter
 	.route('/profile')
-	.get(protect, athleteCheck, athleteProfile, athleteUpcomingSessions)
-	.patch(protect, athleteCheck, uploadFile, uploadToS3, athleteEditProfile);
+	.post(
+		protect,
+		parentCheck,
+		parentChildrenInfo,
+		athleteProfile,
+		athleteUpcomingSessions
+	);
 
-athleteRouter
+parentRouter
+	.route('/children')
+	.post(protect, parentCheck, parentAddChildren)
+	.patch(protect, parentCheck, parentEditChildren);
+
+parentRouter
+	.route('/individual_children')
+	.post(protect, parentCheck, parentGetIndividualChildren);
+
+parentRouter
 	.route('/trainer_profile')
 	.post(
 		protect,
-		athleteCheck,
+		parentCheck,
 		trainerProfile,
 		trainerStatistics,
 		trainerAvailability,
@@ -102,27 +117,15 @@ athleteRouter
 		trainerReviews
 	);
 
-athleteRouter
-	.route('/add_review_trainer')
-	.post(protect, athleteCheck, userAddReview);
-
-athleteRouter
-	.route('/review_trainer_add_img')
-	.post(protect, athleteCheck, uploadFile, uploadToS3, userAddReviewImg);
-
-athleteRouter
+parentRouter
 	.route('/facility_details')
 	.post(
 		protect,
-		athleteCheck,
+		parentCheck,
 		athleteFacilityDetails,
 		athleteFacilityEmployees,
 		athleteFacilityImages,
 		athleteFacilityReviews
 	);
 
-athleteRouter
-	.route('/appointments')
-	.get(protect, athleteCheck, athleteAppointments);
-
-export { athleteRouter };
+export { parentRouter };

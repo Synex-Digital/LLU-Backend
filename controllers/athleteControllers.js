@@ -147,10 +147,43 @@ const athleteHome = expressAsyncHandler(async (req, res) => {
 	let { page, limit } = req.query;
 	page = parseInt(page) || 1;
 	limit = parseInt(limit) || 10;
+	const { user_id } = req.user;
+	const [[availableChat]] = await pool.query(
+		`SELECT
+			*
+		FROM
+			chats
+		WHERE
+			user_id = ?`,
+		[user_id]
+	);
+	if (!availableChat) {
+		res.status(200).json({
+			page,
+			limit,
+			data: {
+				newMessages: 0,
+				topTrainer: req.topTrainer,
+				nearbyFacilities: req.nearbyFacilities,
+			},
+		});
+		return;
+	}
+	const [[{ new_messages }]] = await pool.query(
+		`SELECT
+			new_messages
+		FROM
+			chats
+		WHERE
+			user_id = ?`,
+		[user_id]
+	);
+	console.log(new_messages);
 	res.status(200).json({
 		page,
 		limit,
 		data: {
+			newMessages: new_messages,
 			featuredTrainer: req.featuredTrainer,
 			topTrainer: req.topTrainer,
 			nearbyFacilities: req.nearbyFacilities,
@@ -396,16 +429,13 @@ const athleteFavoriteTrainer = expressAsyncHandler(async (req, res) => {
 		LIMIT ? OFFSET ?`,
 		[user_id, limit, offset]
 	);
-	if (favoriteTrainers.length === 0) {
-		res.status(404).json({
-			message: 'There is no favorite trainer for this athlete',
-		});
-		return;
-	}
 	res.status(200).json({
 		page,
 		limit,
-		data: favoriteTrainers,
+		data: {
+			favoriteTrainers,
+			favoriteFacility: req.favoriteFacility,
+		},
 	});
 });
 
@@ -429,6 +459,16 @@ const athleteAddFavoriteTrainer = expressAsyncHandler(async (req, res) => {
 		});
 		return;
 	}
+	const [[favoriteTrainerAvailable]] = await pool.query(
+		`SELECT * FROM favorite_trainer WHERE trainer_id = ?`,
+		[trainer_id]
+	);
+	if (favoriteTrainerAvailable) {
+		res.status(403).json({
+			message: 'Already added',
+		});
+		return;
+	}
 	const [{ affectedRows }] = await pool.query(
 		`INSERT INTO favorite_trainer (user_id, trainer_id) VALUES (?, ?)`,
 		[user_id, trainer_id]
@@ -445,7 +485,7 @@ const athleteRemoveFavoriteTrainer = expressAsyncHandler(async (req, res) => {
 	const { trainer_id } = req.body;
 	if (!trainer_id || typeof trainer_id !== 'number') {
 		res.status(400).json({
-			message: 'Trainer id is not provided in url',
+			message: 'Trainer id is missing or of wrong datatype',
 		});
 		return;
 	}
@@ -518,6 +558,7 @@ const athleteUpcomingSessions = expressAsyncHandler(async (req, res) => {
 	res.status(200).json({
 		data: {
 			profile: req.profile,
+			children: req.children.length === 0 ? null : req.children,
 			upcomingSessions: req.upcomingSessions,
 		},
 	});
@@ -572,6 +613,120 @@ const athleteAppointments = expressAsyncHandler(async (req, res) => {
 	});
 });
 
+const athleteGetFavoriteFacility = expressAsyncHandler(
+	async (req, res, next) => {
+		let { page, limit } = req.query;
+		page = parseInt(page) || 1;
+		limit = parseInt(limit) || 10;
+		const offset = (page - 1) * limit;
+		const { user_id } = req.user;
+		const [favoriteFacility] = await pool.query(
+			`SELECT
+			f.facility_id,
+			f.hourly_rate,
+			f.name,
+			f.latitude,
+			f.longitude,
+			fi.img,
+			COALESCE(AVG(rf.rating), 0) AS avg_rating
+		FROM
+			favorite_facility ff
+		LEFT JOIN
+			facilities f ON ff.facility_id = f.facility_id
+		LEFT JOIN
+			facility_img fi ON f.facility_id = fi.facility_id
+		LEFT JOIN
+			review_facility rf ON f.facility_id = rf.facility_id
+		WHERE
+			ff.user_id = ?
+		GROUP BY
+			f.facility_id,
+			f.hourly_rate,
+			f.name,
+			f.latitude,
+			f.longitude,
+			fi.img
+		LIMIT ? OFFSET ?`,
+			[user_id, limit, offset]
+		);
+		req.favoriteFacility = favoriteFacility;
+		console.log(favoriteFacility);
+		next();
+	}
+);
+
+const athleteAddFavoriteFacility = expressAsyncHandler(async (req, res) => {
+	const { user_id } = req.user;
+	const { facility_id } = req.body;
+	if (!facility_id || typeof facility_id !== 'number') {
+		res.status(400).json({
+			message: 'Facility id is missing or of wrong datatype',
+		});
+		return;
+	}
+	const [[facilityAvailable]] = await pool.query(
+		`SELECT * FROM facilities WHERE facility_id = ?`,
+		[facility_id]
+	);
+	if (!facilityAvailable) {
+		res.status(400).json({
+			message: 'There is no facility by facility id',
+		});
+		return;
+	}
+	const [[favoriteFacilityAvailable]] = await pool.query(
+		`SELECT * FROM favorite_facility WHERE facility_id = ?`,
+		[facility_id]
+	);
+	if (favoriteFacilityAvailable) {
+		res.status(403).json({
+			message: 'Already added',
+		});
+		return;
+	}
+	const [{ affectedRows }] = await pool.query(
+		`INSERT INTO favorite_facility (user_id, facility_id) VALUES (?, ?)`,
+		[user_id, facility_id]
+	);
+	if (affectedRows === 0) throw new Error('Failed to add favorite facility');
+	res.status(200).json({
+		message: 'Successfully added favorite facility',
+	});
+});
+
+const athleteRemoveFavoriteFacility = expressAsyncHandler(async (req, res) => {
+	const { facility_id } = req.body;
+	if (!facility_id || typeof facility_id !== 'number') {
+		res.status(400).json({
+			message: 'facility id is missing or of wrong datatype',
+		});
+		return;
+	}
+	const [[facilityAvailable]] = await pool.query(
+		`SELECT * FROM facilities WHERE facility_id = ?`,
+		[facility_id]
+	);
+	if (!facilityAvailable) {
+		res.status(400).json({
+			message: 'There is no facility by facility id',
+		});
+		return;
+	}
+	const [{ affectedRows }] = await pool.query(
+		`DELETE FROM favorite_facility WHERE facility_id = ?`,
+		[facility_id]
+	);
+	if (affectedRows === 0) {
+		res.status(403).json({
+			message: 'Already deleted',
+		});
+		return;
+	}
+	res.status(200).json({
+		message: 'Successfully removed favorite facility',
+	});
+});
+
 export {
 	athleteHome,
 	athleteCheck,
@@ -587,4 +742,7 @@ export {
 	athleteEditProfile,
 	athleteFilterFacilities,
 	athleteAppointments,
+	athleteAddFavoriteFacility,
+	athleteGetFavoriteFacility,
+	athleteRemoveFavoriteFacility,
 };

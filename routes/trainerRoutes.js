@@ -39,10 +39,6 @@ import {
 const trainerRouter = Router();
 
 trainerRouter
-	.route('/availability_hours')
-	.post(protect, trainerAddAvailabilityHours);
-
-trainerRouter
 	.route('/home')
 	.post(
 		protect,
