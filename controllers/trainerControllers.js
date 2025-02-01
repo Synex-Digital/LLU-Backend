@@ -257,9 +257,11 @@ const trainerUpcomingSessions = expressAsyncHandler(async (req, res, next) => {
 	}
 	const [upcomingSessions] = await pool.query(
 		`SELECT
-			fs.name,
-			f.latitude,
-			f.longitude,
+			fs.facility_sessions_id,
+			fa.name,
+			fs.description,
+			fa.latitude,
+			fa.longitude,
 			fs.start_time,
 			fs.end_time
 		FROM
@@ -267,13 +269,21 @@ const trainerUpcomingSessions = expressAsyncHandler(async (req, res, next) => {
 		LEFT JOIN
 			trainer_sessions ts ON fs.facility_sessions_id = ts.facility_sessions_id
 		LEFT JOIN
-			facilities f ON fs.facility_id = f.facility_id
+			facilities fa ON fs.facility_id = fa.facility_id
 		WHERE
 			ts.trainer_id = ?
 		AND
 			fs.end_time > NOW()
 		AND
 			fs.start_time > NOW()
+		GROUP BY
+			fs.facility_sessions_id,
+			f.name,
+			fs.description,
+			f.latitude,
+			f.longitude,
+			fs.start_time,
+			fs.end_time
 		LIMIT ? OFFSET ?`,
 		[trainer_id, limit, offset]
 	);
@@ -1198,19 +1208,6 @@ const trainerOngoingSessions = expressAsyncHandler(async (req, res, next) => {
 	page = parseInt(page) || 1;
 	limit = parseInt(limit) || 10;
 	const offset = (page - 1) * limit;
-	const [updateStatus] = await pool.query(
-		`UPDATE
-				facility_sessions
-			SET
-				status = ?
-			WHERE
-				status = 'upcoming'
-			AND
-				start_time <= NOW()
-			AND
-				end_time > NOW()`,
-		['ongoing']
-	);
 	const [[{ trainer_id }]] = await pool.query(
 		`SELECT	trainer_id FROM trainers WHERE user_id = ?`,
 		[user_id]
@@ -1231,9 +1228,11 @@ const trainerOngoingSessions = expressAsyncHandler(async (req, res, next) => {
 			LEFT JOIN
 				facilities fa ON fs.facility_id = fa.facility_id
 			WHERE
-				fs.status = ?
-			AND
 				ts.trainer_id = ?
+			AND
+				fs.end_time > NOW()
+			AND
+				fs.start_time <= NOW()
 			GROUP BY
 				fs.facility_sessions_id,
 				fa.name,
@@ -1243,7 +1242,7 @@ const trainerOngoingSessions = expressAsyncHandler(async (req, res, next) => {
 				fs.start_time,
 				fs.end_time
 			LIMIT ? OFFSET ?`,
-		['ongoing', trainer_id, limit, offset]
+		[trainer_id, limit, offset]
 	);
 	req.ongoingSessions = ongoingSessions;
 	next();
@@ -1255,15 +1254,6 @@ const trainerCompletedSessions = expressAsyncHandler(async (req, res, next) => {
 	page = parseInt(page) || 1;
 	limit = parseInt(limit) || 10;
 	const offset = (page - 1) * limit;
-	const [updateStatus] = await pool.query(
-		`UPDATE
-				facility_sessions
-			SET
-				status = ?
-			WHERE
-				end_time <= NOW()`,
-		['completed']
-	);
 	const [[{ trainer_id }]] = await pool.query(
 		`SELECT	trainer_id FROM trainers WHERE user_id = ?`,
 		[user_id]
@@ -1284,9 +1274,11 @@ const trainerCompletedSessions = expressAsyncHandler(async (req, res, next) => {
 			LEFT JOIN
 				facilities f ON fs.facility_id = f.facility_id
 			WHERE
-				fs.status = ?
-			AND
 				ts.trainer_id = ?
+			AND
+				fs.end_time <= NOW()
+			AND
+				fs.start_time < NOW()
 			GROUP BY
 				fs.facility_sessions_id,
 				f.name,
@@ -1296,7 +1288,7 @@ const trainerCompletedSessions = expressAsyncHandler(async (req, res, next) => {
 				fs.start_time,
 				fs.end_time
 			LIMIT ? OFFSET ?`,
-		['completed', trainer_id, limit, offset]
+		[trainer_id, limit, offset]
 	);
 	req.completedSessions = completedSessions;
 	next();
