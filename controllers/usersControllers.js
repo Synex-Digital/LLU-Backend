@@ -1064,7 +1064,15 @@ const userGetNotifications = expressAsyncHandler(async (req, res) => {
 	limit = parseInt(limit) || 10;
 	const offset = (page - 1) * limit;
 	const [notifications] = await pool.query(
-		`SELECT * FROM notifications WHERE user_id = ? LIMIT ? OFFSET ?`,
+		`SELECT
+			title,
+			content,
+			time,
+			read_status
+		FROM
+			notifications
+		WHERE user_id = ?
+		LIMIT ? OFFSET ?`,
 		[user_id, limit, offset]
 	);
 	res.status(200).json({
