@@ -1118,11 +1118,6 @@ const trainerEditProfile = expressAsyncHandler(async (req, res) => {
 		`DELETE FROM trainer_availability_hours WHERE trainer_id = ?`,
 		[trainer_id]
 	);
-	if (affectedRows === 0) {
-		await connection.rollback();
-		connection.release();
-		throw new Error('Failed to delete trainer availability');
-	}
 	for (const [index, day] of availability.entries()) {
 		const { week_day, start_time, end_time, available } = day;
 		const [{ affectedRows }] = await connection.query(
