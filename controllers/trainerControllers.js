@@ -286,7 +286,7 @@ const trainerHomeStats = expressAsyncHandler(async (req, res, next) => {
 	const [statistics] = await pool.query(
 		`SELECT
 			DATE_FORMAT(fs.start_time, '%Y-%m') AS month,
-			COUNT(DISTINCT ts.trainer_session_id) AS total_sessions
+			COALESCE(COUNT(DISTINCT ts.trainer_session_id), 0) AS total_sessions
 		FROM
 			facility_sessions fs
 		LEFT JOIN
@@ -329,11 +329,35 @@ const trainerProfileCompletion = expressAsyncHandler(async (req, res) => {
 		page,
 		limit,
 		data: {
-			upcomingSessions: req.upcomingSessions,
+			trainerInfo: req.trainerInfo,
 			statistics: req.statistics,
+			upcomingSessions: req.upcomingSessions,
+			experiences: req.experiences,
+			certificates: req.certificates,
+			educations: req.educations,
 			profileCompletion: (totalCount / mandatory) * 100,
 		},
 	});
+});
+
+const trainerInfo = expressAsyncHandler(async (req, res, next) => {
+	const { trainer_id } = req.body;
+	const [[trainer]] = await pool.query(
+		`SELECT
+			u.first_name,
+			u.last_name,
+			u.img,
+			t.hourly_rate
+		FROM
+			trainers t
+		LEFT JOIN
+			users u ON t.user_id = u.user_id
+		WHERE
+			trainer_id = ?`,
+		[trainer_id]
+	);
+	req.trainerInfo = trainer;
+	next();
 });
 
 const trainerAddExperience = expressAsyncHandler(async (req, res) => {
@@ -547,6 +571,59 @@ const trainerIndividualExperience = expressAsyncHandler(async (req, res) => {
 		},
 	});
 });
+
+const trainerGetEducationExperienceCertificate = expressAsyncHandler(
+	async (req, res, next) => {
+		const { user_id } = req.user;
+		const [[{ trainer_id }]] = await pool.query(
+			`SELECT	trainer_id FROM trainers WHERE user_id = ?`,
+			[user_id]
+		);
+		const [experiences] = await pool.query(
+			`SELECT
+			experience_id,
+			designation,
+			company_name,
+			job_type,
+			start_date,
+			end_date
+		FROM
+			experiences
+		WHERE
+			trainer_id = ?`,
+			[trainer_id]
+		);
+		const [certificates] = await pool.query(
+			`SELECT
+			title,
+			organization,
+			start_date,
+			end_date
+		FROM
+			certificates
+		WHERE
+			trainer_id = ?`,
+			[trainer_id]
+		);
+		const [educations] = await pool.query(
+			`SELECT
+				course_name,
+				institute_name,
+				study_status,
+				start_date,
+				end_date
+			FROM
+				educations
+			WHERE
+				trainer_id = ?`,
+			[trainer_id]
+		);
+		req.experiences = experiences;
+		req.certificates = certificates;
+		req.educations = educations;
+		next();
+	}
+);
 
 const trainerAddCertificate = expressAsyncHandler(async (req, res) => {
 	const { user_id, title, organization, start_date, end_date } = req.body;
@@ -1304,4 +1381,6 @@ export {
 	trainerIndividualExperience,
 	trainerIndividualCertificate,
 	trainerIndividualEducation,
+	trainerGetEducationExperienceCertificate,
+	trainerInfo,
 };

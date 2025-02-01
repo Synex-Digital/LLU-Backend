@@ -16,11 +16,13 @@ import {
 	trainerEnsure,
 	trainerGetCertificates,
 	trainerGetEducation,
+	trainerGetEducationExperienceCertificate,
 	trainerGetExperience,
 	trainerHomeStats,
 	trainerIndividualCertificate,
 	trainerIndividualEducation,
 	trainerIndividualExperience,
+	trainerInfo,
 	trainerOngoingSessions,
 	trainerProfile,
 	trainerProfileCompletion,
@@ -44,7 +46,9 @@ trainerRouter
 		protect,
 		trainerCheck,
 		trainerUpcomingSessions,
+		trainerInfo,
 		trainerHomeStats,
+		trainerGetEducationExperienceCertificate,
 		trainerProfileCompletion
 	);
 
