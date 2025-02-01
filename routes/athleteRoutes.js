@@ -16,6 +16,7 @@ import {
 	athleteProfile,
 	athleteRemoveFavoriteFacility,
 	athleteRemoveFavoriteTrainer,
+	athleteSearchFacilityByName,
 	athleteTopTrainer,
 	athleteUpcomingSessions,
 } from '../controllers/athleteControllers.js';
@@ -59,6 +60,10 @@ athleteRouter
 athleteRouter
 	.route('/search_facility')
 	.post(protect, athleteCheck, athleteFilterFacilities);
+
+athleteRouter
+	.route('/search')
+	.post(protect, athleteCheck, athleteSearchFacilityByName);
 
 athleteRouter
 	.route('/favorites')

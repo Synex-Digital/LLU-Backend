@@ -225,6 +225,7 @@ const athleteFilterTrainer = expressAsyncHandler(async (req, res) => {
 	const [filteredTrainer] = await pool.query(
 		`SELECT
 			t.trainer_id,
+			u.img,
 			u.first_name,
 			u.last_name,
 			u.latitude,
@@ -320,11 +321,14 @@ const athleteFilterFacilities = expressAsyncHandler(async (req, res) => {
 			COUNT(DISTINCT rf.review_facility_id) as no_of_reviews,
 			COALESCE(AVG(rf.rating), 0) as avg_rating,
 			GROUP_CONCAT(DISTINCT a.name SEPARATOR ',') AS amenities,
-			GROUP_CONCAT(DISTINCT fah.week_day SEPARATOR ',') AS week_days
+			GROUP_CONCAT(DISTINCT fah.week_day SEPARATOR ',') AS week_days,
+			GROUP_CONCAT(DISTINCT fi.img SEPARATOR ',') AS images
 		FROM
 			facilities f
 		LEFT JOIN
 			review_facility rf ON f.facility_id = rf.facility_id
+		LEFT JOIN
+			facility_img fi ON f.facility_id = fi.facility_id
 		LEFT JOIN
 			amenities a ON f.facility_id = a.facility_id
 		LEFT JOIN
@@ -349,8 +353,45 @@ const athleteFilterFacilities = expressAsyncHandler(async (req, res) => {
 		})
 		.map(({ amenities, week_days, ...facility }) => ({
 			...facility,
+			images: facility.images ? facility.images.split(',') : [],
 		}));
 	res.status(200).json(filteredFacilities);
+});
+
+const athleteSearchFacilityByName = expressAsyncHandler(async (req, res) => {
+	const { name } = req.body;
+	const [facilities] = await pool.query(
+		`SELECT
+			f.facility_id,
+			f.name,
+			f.latitude,
+			f.longitude,
+			COUNT(DISTINCT rf.review_facility_id) as no_of_reviews,
+			COALESCE(AVG(rf.rating), 0) as avg_rating,
+			GROUP_CONCAT(DISTINCT a.name SEPARATOR ',') AS amenities,
+			GROUP_CONCAT(DISTINCT fah.week_day SEPARATOR ',') AS week_days,
+			GROUP_CONCAT(DISTINCT fi.img SEPARATOR ',') AS images
+		FROM
+			facilities f
+		LEFT JOIN
+			review_facility rf ON f.facility_id = rf.facility_id
+		LEFT JOIN
+			facility_img fi ON f.facility_id = fi.facility_id
+		LEFT JOIN
+			amenities a ON f.facility_id = a.facility_id
+		LEFT JOIN
+			facility_availability_hours fah ON f.facility_id = fah.facility_id
+		WHERE
+			f.name LIKE ?
+		GROUP BY
+			f.facility_id, f.name, f.latitude, f.longitude`,
+		[`%${name}%`]
+	);
+	res.status(200).json({
+		data: {
+			facilities,
+		},
+	});
 });
 
 const athleteEditProfile = expressAsyncHandler(async (req, res) => {
@@ -745,4 +786,5 @@ export {
 	athleteAddFavoriteFacility,
 	athleteGetFavoriteFacility,
 	athleteRemoveFavoriteFacility,
+	athleteSearchFacilityByName,
 };
