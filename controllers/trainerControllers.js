@@ -216,6 +216,9 @@ const trainerReviews = expressAsyncHandler(async (req, res) => {
 			statistics: req.trainerStatistics,
 			availability: req.trainerAvailability,
 			suggested_facility: req.suggestedFacility,
+			experiences: req.experiences,
+			certificates: req.certificates,
+			educations: req.certificates,
 			reviews: filteredReviews,
 		},
 	});
@@ -339,12 +342,8 @@ const trainerProfileCompletion = expressAsyncHandler(async (req, res) => {
 		page,
 		limit,
 		data: {
-			trainerInfo: req.trainerInfo,
-			statistics: req.statistics,
 			upcomingSessions: req.upcomingSessions,
-			experiences: req.experiences,
-			certificates: req.certificates,
-			educations: req.educations,
+			statistics: req.statistics,
 			profileCompletion: (totalCount / mandatory) * 100,
 		},
 	});

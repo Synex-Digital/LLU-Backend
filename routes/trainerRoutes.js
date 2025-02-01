@@ -46,9 +46,7 @@ trainerRouter
 		protect,
 		trainerCheck,
 		trainerUpcomingSessions,
-		trainerInfo,
 		trainerHomeStats,
-		trainerGetEducationExperienceCertificate,
 		trainerProfileCompletion
 	);
 
@@ -91,6 +89,7 @@ trainerRouter
 		trainerProfile,
 		trainerStatistics,
 		trainerAvailability,
+		trainerGetEducationExperienceCertificate,
 		trainerReviews
 	)
 	.patch(protect, trainerCheck, trainerEditProfile);
