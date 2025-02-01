@@ -278,10 +278,10 @@ const trainerUpcomingSessions = expressAsyncHandler(async (req, res, next) => {
 			fs.start_time > NOW()
 		GROUP BY
 			fs.facility_sessions_id,
-			f.name,
+			fa.name,
 			fs.description,
-			f.latitude,
-			f.longitude,
+			fa.latitude,
+			fa.longitude,
 			fs.start_time,
 			fs.end_time
 		LIMIT ? OFFSET ?`,
