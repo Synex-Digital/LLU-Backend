@@ -581,28 +581,27 @@ const trainerGetEducationExperienceCertificate = expressAsyncHandler(
 		);
 		const [experiences] = await pool.query(
 			`SELECT
-			experience_id,
-			designation,
-			company_name,
-			job_type,
-			start_date,
-			end_date
-		FROM
-			experiences
-		WHERE
-			trainer_id = ?`,
+				designation,
+				company_name,
+				job_type,
+				start_date,
+				end_date
+			FROM
+				experiences
+			WHERE
+				trainer_id = ?`,
 			[trainer_id]
 		);
 		const [certificates] = await pool.query(
 			`SELECT
-			title,
-			organization,
-			start_date,
-			end_date
-		FROM
-			certificates
-		WHERE
-			trainer_id = ?`,
+				title,
+				organization,
+				start_date,
+				end_date
+			FROM
+				certificates
+			WHERE
+				trainer_id = ?`,
 			[trainer_id]
 		);
 		const [educations] = await pool.query(
@@ -737,6 +736,7 @@ const trainerGetCertificates = expressAsyncHandler(async (req, res) => {
 	);
 	const [certificates] = await pool.query(
 		`SELECT
+			certificate_id,
 			title,
 			organization,
 			start_date,
@@ -948,6 +948,7 @@ const trainerGetEducation = expressAsyncHandler(async (req, res) => {
 	);
 	const [educations] = await pool.query(
 		`SELECT
+			education_id,
 			course_name,
 			institute_name,
 			study_status,
