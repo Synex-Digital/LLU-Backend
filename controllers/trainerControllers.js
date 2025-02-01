@@ -45,9 +45,9 @@ const trainerStatistics = expressAsyncHandler(async (req, res, next) => {
 	const { trainer_id } = req.body;
 	const [[trainerDetails]] = await pool.query(
 		`SELECT
-			t.no_of_students,
-			TIMESTAMPDIFF(YEAR, ex.start_date, ex.end_date) AS years_of_experience,
-			AVG(tr.rating) AS avg_rating,
+			COALESCE(t.no_of_students, 0) AS no_of_students,
+			COALESCE(TIMESTAMPDIFF(YEAR, ex.start_date, ex.end_date), 0) AS years_of_experience,
+			COALESCE(AVG(tr.rating), 0) AS avg_rating,
 			COUNT(DISTINCT tr.review_trainer_id) as no_of_reviews
 		FROM
 			trainers t
