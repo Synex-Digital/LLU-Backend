@@ -255,19 +255,6 @@ const facilitatorOngoingSessions = expressAsyncHandler(
 		page = parseInt(page) || 1;
 		limit = parseInt(limit) || 10;
 		const offset = (page - 1) * limit;
-		const [updateStatus] = await pool.query(
-			`UPDATE
-				facility_sessions
-			SET
-				status = ?
-			WHERE
-				status = 'upcoming'
-			AND
-				start_time <= NOW()
-			AND
-				end_time > NOW()`,
-			['ongoing']
-		);
 		const [ongoingSessions] = await pool.query(
 			`SELECT
 				fs.facility_sessions_id,
@@ -284,11 +271,21 @@ const facilitatorOngoingSessions = expressAsyncHandler(
 			INNER JOIN
 				facilitators f ON fa.facilitator_id = f.facilitator_id
 			WHERE
-				fs.status = ?
+				fs.start_time <= NOW()
+			AND
+				fs.end_time > NOW()
 			AND
 				f.user_id = ?
+			GROUP BY
+				fs.facility_sessions_id,
+				fa.name,
+				fs.description,
+				fa.latitude,
+				fa.longitude,
+				fs.start_time,
+				fs.end_time
 			LIMIT ? OFFSET ?`,
-			['ongoing', user_id, limit, offset]
+			[user_id, limit, offset]
 		);
 		req.ongoingSessions = ongoingSessions;
 		next();
@@ -317,11 +314,13 @@ const facilitatorUpcomingSessions = expressAsyncHandler(async (req, res) => {
 			INNER JOIN
 				facilitators f ON fa.facilitator_id = f.facilitator_id
 			WHERE
-				fs.status = ?
+				fs.start_time < NOW()
+			AND
+				fs.end_time < NOW()
 			AND
 				f.user_id = ?
 			LIMIT ? OFFSET ?`,
-		['upcoming', user_id, limit, offset]
+		[user_id, limit, offset]
 	);
 	res.status(200).json({
 		page,
@@ -342,16 +341,6 @@ const facilitatorCompletedSessions = expressAsyncHandler(
 		page = parseInt(page) || 1;
 		limit = parseInt(limit) || 10;
 		const offset = (page - 1) * limit;
-		const [updateStatus] = await pool.query(
-			`UPDATE
-				facility_sessions
-			SET
-				status = ?
-			WHERE
-				end_time <= NOW()`,
-			['completed']
-		);
-		//TODO completed is undefined
 		const [completedSessions] = await pool.query(
 			`SELECT
 				fs.facility_sessions_id,
@@ -368,7 +357,9 @@ const facilitatorCompletedSessions = expressAsyncHandler(
 			INNER JOIN
 				facilitators f ON fa.facilitator_id = f.facilitator_id
 			WHERE
-				fs.status = ?
+				fs.start_time < NOW()
+			AND
+				fs.end_time <= NOW()
 			AND
 				f.user_id = ?
 			GROUP BY
@@ -380,7 +371,7 @@ const facilitatorCompletedSessions = expressAsyncHandler(
 				fs.start_time,
 				fs.end_time
 			LIMIT ? OFFSET ?`,
-			['completed', user_id, limit, offset]
+			[user_id, limit, offset]
 		);
 		req.completedSessions = completedSessions;
 		next();
