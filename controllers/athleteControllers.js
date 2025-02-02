@@ -4,7 +4,7 @@ import { arrayCompare } from '../utilities/arrayCompare.js';
 
 const athleteFeaturedTrainer = expressAsyncHandler(async (req, res, next) => {
 	let { page, limit } = req.query;
-	const { user_id } = req.user;
+	const { user_id, type } = req.user;
 	const { latitude, longitude } = req.body;
 	if (!latitude || !longitude) {
 		res.status(400).json({
@@ -15,7 +15,7 @@ const athleteFeaturedTrainer = expressAsyncHandler(async (req, res, next) => {
 	page = parseInt(page) || 1;
 	limit = parseInt(limit) || 10;
 	const offset = (page - 1) * limit;
-	const [featuredTrainer] = await pool.query(
+	let [featuredTrainer] = await pool.query(
 		`SELECT
 			t.trainer_id,
 			u.profile_picture,
@@ -51,6 +51,11 @@ const athleteFeaturedTrainer = expressAsyncHandler(async (req, res, next) => {
 		LIMIT ? OFFSET ?`,
 		[user_id, longitude, latitude, limit, offset]
 	);
+	if (type === 'facilitator') {
+		featuredTrainer = featuredTrainer.map(
+			({ is_favorite, ...rest }) => rest
+		);
+	}
 	req.featuredTrainer = featuredTrainer;
 	next();
 });
