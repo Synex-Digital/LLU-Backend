@@ -544,18 +544,25 @@ const facilitatorAllReview = expressAsyncHandler(async (req, res) => {
 			u.img,
 			rfa.rating,
 			rfa.content,
-			rfa.time
+			rfa.time,
+			GROUP_CONCAT(DISTINCT rfi.img SEPARATOR ',') AS images
 		FROM
 			review_facilitators rfa
 		LEFT JOIN
 			facilitators f ON rfa.facilitator_id = f.facilitator_id
 		LEFT JOIN
 			users u ON rfa.user_id = u.user_id
+		LEFT JOIN
+			review_facilitator_img rfi ON rfa.review_facilitator_id = rfi.review_facilitator_id
 		WHERE
 			rfa.facilitator_id = ?
 		LIMIT ? OFFSET ?`,
 		[facilitator_id, limit, offset]
 	);
+	const filteredFacilitatorReview = facilitatorReviews.map((review) => ({
+		...review,
+		images: review.images ? review.images.split(',') : [],
+	}));
 	res.status(200).json({
 		page,
 		limit,
@@ -564,7 +571,7 @@ const facilitatorAllReview = expressAsyncHandler(async (req, res) => {
 			profileCompletion: req.profileCompletion,
 			facilityList: req.facilityNameList,
 			trainers: req.featuredTrainer,
-			reviews: facilitatorReviews,
+			reviews: filteredFacilitatorReview,
 		},
 	});
 });
