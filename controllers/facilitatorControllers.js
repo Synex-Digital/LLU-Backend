@@ -676,16 +676,23 @@ const facilityReviews = expressAsyncHandler(async (req, res) => {
 			rf.review_facility_id,
 			rf.rating,
 			rf.time,
-			rf.content
+			rf.content,
+			GROUP_CONCAT(DISTINCT rfi.img SEPARATOR ',') AS images
 		FROM
 			review_facility rf
 		LEFT JOIN
 			users u ON rf.user_id = u.user_id
+		LEFT JOIN
+			review_facility_img rfi ON rf.review_facility_id = rfi.review_facility_id
 		WHERE
 			facility_id = ?
 		`,
 		[facility_id, limit, offset]
 	);
+	const filteredReview = reviews.map((review) => ({
+		...review,
+		images: review.images ? review.images.split(',') : [],
+	}));
 	res.status(200).json({
 		page,
 		limit,
@@ -693,7 +700,7 @@ const facilityReviews = expressAsyncHandler(async (req, res) => {
 			facilityInfo: req.facilityDetails,
 			availableHours: req.availableHours,
 			gallery: req.gallery,
-			reviews,
+			reviews: filteredReview,
 		},
 	});
 });
