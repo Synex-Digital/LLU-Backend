@@ -314,9 +314,9 @@ const facilitatorUpcomingSessions = expressAsyncHandler(async (req, res) => {
 			INNER JOIN
 				facilitators f ON fa.facilitator_id = f.facilitator_id
 			WHERE
-				fs.start_time < NOW()
+				fs.start_time > NOW()
 			AND
-				fs.end_time < NOW()
+				fs.end_time > NOW()
 			AND
 				f.user_id = ?
 			LIMIT ? OFFSET ?`,
