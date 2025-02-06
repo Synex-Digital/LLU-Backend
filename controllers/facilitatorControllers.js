@@ -64,24 +64,40 @@ const facilitatorAddFacility = expressAsyncHandler(async (req, res, next) => {
 		await connection.rollback();
 		throw new Error('Failed to create facility');
 	}
-
+	const allowedWeeks = [
+		'saturday',
+		'sunday',
+		'monday',
+		'tuesday',
+		'thursday',
+		'friday',
+		'wednesday',
+	];
 	for (const [index, day] of available_hours.entries()) {
 		const { week_day, start_time, end_time, available } = day;
-		if (!start_time || !!isNaN(Date.parse(start_time))) {
+		if (!allowedWeeks.includes(week_day)) {
+			await connection.rollback();
+			connection.release();
 			res.status(400).json({
-				message: `Invalid or missing start_time at ${week_day}`,
+				message: `Invalid weekday: ${week_day}`,
 			});
 			return;
 		}
-		if (!end_time && !!isNaN(Date.parse(end_time))) {
+		if (!validateTimeStamp(start_time) || !validateTimeStamp(end_time)) {
+			await connection.rollback();
+			connection.release();
 			res.status(400).json({
-				message: `Invalid or missing end_time at ${week_day}`,
+				message: `Invalid start_time or end_time format at ${week_day}`,
 			});
 			return;
 		}
-		if (new Date(start_time) >= new Date(end_time)) {
+		const startTime = new Date(start_time);
+		const endTime = new Date(end_time);
+		if (startTime > endTime) {
+			await connection.rollback();
+			connection.release();
 			res.status(400).json({
-				message: 'start_date must be earlier than end_date',
+				message: `start_time can not be smaller than end_time at ${week_day}`,
 			});
 			return;
 		}
@@ -89,11 +105,10 @@ const facilitatorAddFacility = expressAsyncHandler(async (req, res, next) => {
 			await connection.rollback();
 			connection.release();
 			res.status(400).json({
-				message: `Invalid available format at ${week_day}`,
+				message: `Invalid available format at ${index + 1}`,
 			});
 			return;
 		}
-		console.log({ week_day, start_time, end_time, available });
 		const [insertStatus] = await connection.query(
 			`INSERT INTO facility_availability_hours (facility_id, week_day, start_time, end_time, available) VALUES (?, ?, ?, ?, ?)`,
 			[insertId, week_day, start_time, end_time, available]
@@ -869,11 +884,13 @@ const facilityEdit = expressAsyncHandler(async (req, res) => {
 	const allowedWeeks = [
 		'saturday',
 		'sunday',
+		'monday',
 		'tuesday',
 		'thursday',
 		'friday',
 		'wednesday',
 	];
+	//TODO have to remove available from database
 	for (const [index, day] of available_hours.entries()) {
 		const { week_day, start_time, end_time, available } = day;
 		if (!allowedWeeks.includes(week_day)) {
@@ -910,7 +927,6 @@ const facilityEdit = expressAsyncHandler(async (req, res) => {
 			});
 			return;
 		}
-		console.log({ week_day, start_time, end_time, available });
 		const [{ affectedRows }] = await connection.query(
 			`UPDATE
 				facility_availability_hours
