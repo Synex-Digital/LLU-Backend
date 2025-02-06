@@ -6,7 +6,6 @@ import {
 	generateRefreshToken,
 } from '../utilities/generateToken.js';
 import { generateOTP } from '../utilities/generateOTP.js';
-import { facilitatorOngoingSessions } from './facilitatorControllers.js';
 
 const authLogout = expressAsyncHandler(async (req, res) => {
 	const { accessToken, refreshToken } = req.body;

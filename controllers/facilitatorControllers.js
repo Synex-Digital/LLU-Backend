@@ -380,6 +380,7 @@ const facilitatorCompletedSessions = expressAsyncHandler(
 
 const facilitySessionDetails = expressAsyncHandler(async (req, res, next) => {
 	const { session_id } = req.body;
+	//TODO prevent user from accessing if not part of session
 	const [[sessionDetails]] = await pool.query(
 		`SELECT
 			fs.facility_sessions_id,

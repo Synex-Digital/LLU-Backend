@@ -21,7 +21,8 @@ const trainerProfile = expressAsyncHandler(async (req, res, next) => {
 			u.type,
 			u.latitude,
 			u.longitude,
-			u.short_description
+			u.short_description,
+			t.hourly_rate
 		FROM
 			users u
 		INNER JOIN
