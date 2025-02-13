@@ -719,8 +719,8 @@ const athleteAddFavoriteFacility = expressAsyncHandler(async (req, res) => {
 		return;
 	}
 	const [[favoriteFacilityAvailable]] = await pool.query(
-		`SELECT * FROM favorite_facility WHERE facility_id = ?`,
-		[facility_id]
+		`SELECT * FROM favorite_facility WHERE facility_id = ? AND user_id = ?`,
+		[facility_id, user_id]
 	);
 	if (favoriteFacilityAvailable) {
 		res.status(403).json({
