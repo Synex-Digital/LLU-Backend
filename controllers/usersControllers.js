@@ -1,6 +1,7 @@
 import expressAsyncHandler from 'express-async-handler';
 import { pool } from '../config/db.js';
 import { generateRandomString } from '../utilities/generateRandomString.js';
+import { validateDate } from '../utilities/DateValidation.js';
 
 const userAddReview = expressAsyncHandler(async (req, res) => {
 	const { trainer_id } = req.body;
@@ -35,6 +36,17 @@ const userAddReview = expressAsyncHandler(async (req, res) => {
 	if (affectedRows === 0) throw new Error('Failed to add review');
 	res.status(200).json({
 		review_id: insertId,
+	});
+});
+
+const ensureBookPersonalities = expressAsyncHandler(async (req, res, next) => {
+	const { type } = req.user;
+	if (type === 'athlete' || type === 'parent') {
+		next();
+		return;
+	}
+	res.status(403).json({
+		message: 'Only athletes and parents can book facilities',
 	});
 });
 
@@ -1082,6 +1094,161 @@ const userGetNotifications = expressAsyncHandler(async (req, res) => {
 	});
 });
 
+const userBooksFacilityWithTrainer = expressAsyncHandler(async (req, res) => {
+	const { user_id } = req.user;
+	const { trainer_id, facility_id, date } = req.body;
+	if (!trainer_id || typeof trainer_id !== 'number') {
+		res.status(400).json({
+			message: 'trainer_id is missing or of wrong datatype',
+		});
+		return;
+	}
+	const [[availableBooking]] = await pool.query(
+		`SELECT * FROM books WHERE user_id = ? AND trainer_id = ? AND facility_id = ?`,
+		[user_id, trainer_id, facility_id]
+	);
+	if (availableBooking) {
+		res.status(403).json({
+			message: 'user already booked the trainer with facility',
+		});
+		return;
+	}
+	const [{ affectedRows }] = await pool.query(
+		`INSERT INTO books (user_id, facility_id, trainer_id, time) VALUES (?, ?, ?, ?)`,
+		[user_id, facility_id, trainer_id, date]
+	);
+	if (affectedRows === 0)
+		throw new Error('Failed to book facility with trainer');
+	res.status(200).json({
+		message: 'Successfully booked facility with trainer',
+	});
+});
+
+const userBookFacility = expressAsyncHandler(async (req, res, next) => {
+	const { user_id } = req.user;
+	const { facility_id, trainer_id, date } = req.body;
+	if (!facility_id || typeof facility_id !== 'number') {
+		res.status(400).json({
+			message: 'facility_id is missing or of wrong datatype',
+		});
+		return;
+	}
+	if (!date || !validateDate(date)) {
+		res.status(400).json({
+			message: 'Invalid date format or date is missing',
+		});
+		return;
+	}
+	if (facility_id && trainer_id) {
+		next();
+		return;
+	}
+	const [[availableBooking]] = await pool.query(
+		`SELECT * FROM book_facilities WHERE user_id = ? AND facility_id = ?`,
+		[user_id, facility_id]
+	);
+	if (availableBooking) {
+		res.status(403).json({
+			message: 'user already booked the facility',
+		});
+		return;
+	}
+	const [{ affectedRows }] = await pool.query(
+		`INSERT INTO book_facilities (user_id, facility_id, time) VALUES (?, ?, ?)`,
+		[user_id, facility_id, date]
+	);
+	if (affectedRows === 0) throw new Error('Failed to book facility');
+	res.status(200).json({
+		message: 'Successfully booked facility',
+	});
+});
+
+const userGetReviewSummary = expressAsyncHandler(async (req, res) => {
+	const { user_id } = req.user;
+	let [[book]] = await pool.query(
+		`SELECT
+			facility_id,
+			trainer_id,
+			time
+		FROM
+			books
+		WHERE
+			user_id = ?`,
+		[user_id]
+	);
+	if (!book) {
+		[[book]] = await pool.query(
+			`SELECT
+				facility_id,
+				time
+			FROM
+				book_facilities
+			WHERE
+				user_id = ?`,
+			[user_id]
+		);
+	}
+	if (!book) {
+		res.status(400).json({
+			message: 'User has not booked any facility',
+		});
+		return;
+	}
+	const [[facility]] = await pool.query(
+		`SELECT
+			f.facility_id,
+			f.name,
+			f.latitude,
+			f.longitude,
+			f.hourly_rate,
+			COALESCE(AVG(rf.rating), 0) AS avg_rating,
+			fi.img
+		FROM
+			facilities f
+		LEFT JOIN
+			review_facility rf ON f.facility_id = rf.facility_id
+		LEFT JOIN
+			facility_img fi ON f.facility_id = fi.facility_id
+		WHERE 
+			f.facility_id = ?
+		GROUP BY
+			f.name,
+			f.latitude,
+			f.longitude,
+			f.hourly_rate`,
+		[book.facility_id]
+	);
+	let trainer;
+	if (book.trainer_id) {
+		[[trainer]] = await pool.query(
+			`SELECT
+				t.trainer_id,
+				u.first_name,
+				u.last_name,
+				t.hourly_rate
+			FROM
+				trainers t
+			LEFT JOIN
+				users u ON u.user_id = t.user_id
+			WHERE 
+				t.trainer_id = ?`,
+			[book.trainer_id]
+		);
+	}
+	let totalPrice = trainer
+		? facility.hourly_rate + trainer.hourly_rate
+		: facility.hourly_rate;
+	totalPrice = totalPrice + totalPrice * process.env.INCENTIVE_PERCENTAGE;
+	res.status(200).json({
+		data: {
+			time: new Date(book.time).toISOString().split('T')[0],
+			facility,
+			trainer,
+			totalAmount: totalPrice,
+		},
+	});
+});
+
 export {
 	userAddReview,
 	userAddReviewImg,
@@ -1109,4 +1276,8 @@ export {
 	userHandleNotificationStatus,
 	userRemoveLikeComment,
 	userUnfollow,
+	userBooksFacilityWithTrainer,
+	userBookFacility,
+	ensureBookPersonalities,
+	userGetReviewSummary,
 };

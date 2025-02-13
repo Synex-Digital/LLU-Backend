@@ -24,12 +24,20 @@ import {
 	userHandleNotificationStatus,
 	userRemoveLikeComment,
 	userUnfollow,
+	userBookFacility,
+	userBooksFacilityWithTrainer,
+	ensureBookPersonalities,
+	userGetReviewSummary,
 } from '../controllers/usersControllers.js';
 import {
 	uploadMultiple,
 	uploadMultipleToS3,
 } from '../middleware/uploadMiddleware.js';
 import { sanitizeInput } from '../middleware/dangerousHTMLMiddleware.js';
+import {
+	createCustomer,
+	createPaymentIntent,
+} from '../controllers/paymentControllers.js';
 
 const userRouter = Router();
 
@@ -80,5 +88,22 @@ userRouter.route('/like_comment').post(protect, userLikeComment);
 userRouter.route('/remove_like_comment').delete(protect, userRemoveLikeComment);
 
 userRouter.route('/notifications').get(protect, userGetNotifications);
+
+userRouter
+	.route('/book')
+	.post(
+		protect,
+		ensureBookPersonalities,
+		userBookFacility,
+		userBooksFacilityWithTrainer
+	);
+
+userRouter
+	.route('/book_summary')
+	.get(protect, ensureBookPersonalities, userGetReviewSummary);
+
+userRouter.route('/payment').post(protect, createPaymentIntent);
+
+userRouter.route('/create_customer').post(protect, createCustomer);
 
 export { userRouter };

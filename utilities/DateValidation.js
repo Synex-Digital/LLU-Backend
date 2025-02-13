@@ -7,4 +7,12 @@ const validateTimeStamp = (time) => {
 	return date.toString() !== 'Invalid Date';
 };
 
-export { validateTimeStamp };
+const validateDate = (date) => {
+	const regex = /^\d{4}-\d{2}-\d{2}$/;
+	if (!regex.test(date)) return false;
+	const parsedDate = new Date(date);
+	if (isNaN(parsedDate.getTime())) return false;
+	return true;
+};
+
+export { validateTimeStamp, validateDate };

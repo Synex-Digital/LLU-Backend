@@ -447,7 +447,6 @@ const athleteEditProfile = expressAsyncHandler(async (req, res) => {
 	});
 });
 
-//TODO have to add facility favorites too
 const athleteFavoriteTrainer = expressAsyncHandler(async (req, res) => {
 	let { page, limit } = req.query;
 	page = parseInt(page) || 1;
@@ -498,7 +497,6 @@ const athleteAddFavoriteTrainer = expressAsyncHandler(async (req, res) => {
 		`SELECT * FROM trainers WHERE trainer_id = ?`,
 		[trainer_id]
 	);
-	console.log(trainerAvailable);
 	if (!trainerAvailable) {
 		res.status(400).json({
 			message: 'There is no trainer by trainer_id',
@@ -506,8 +504,8 @@ const athleteAddFavoriteTrainer = expressAsyncHandler(async (req, res) => {
 		return;
 	}
 	const [[favoriteTrainerAvailable]] = await pool.query(
-		`SELECT * FROM favorite_trainer WHERE trainer_id = ?`,
-		[trainer_id]
+		`SELECT * FROM favorite_trainer WHERE trainer_id = ? AND user_id = ?`,
+		[trainer_id, user_id]
 	);
 	if (favoriteTrainerAvailable) {
 		res.status(403).json({
@@ -668,31 +666,31 @@ const athleteGetFavoriteFacility = expressAsyncHandler(
 		const { user_id } = req.user;
 		const [favoriteFacility] = await pool.query(
 			`SELECT
-			f.facility_id,
-			f.hourly_rate,
-			f.name,
-			f.latitude,
-			f.longitude,
-			fi.img,
-			COALESCE(AVG(rf.rating), 0) AS avg_rating
-		FROM
-			favorite_facility ff
-		LEFT JOIN
-			facilities f ON ff.facility_id = f.facility_id
-		LEFT JOIN
-			facility_img fi ON f.facility_id = fi.facility_id
-		LEFT JOIN
-			review_facility rf ON f.facility_id = rf.facility_id
-		WHERE
-			ff.user_id = ?
-		GROUP BY
-			f.facility_id,
-			f.hourly_rate,
-			f.name,
-			f.latitude,
-			f.longitude,
-			fi.img
-		LIMIT ? OFFSET ?`,
+				f.facility_id,
+				f.hourly_rate,
+				f.name,
+				f.latitude,
+				f.longitude,
+				fi.img,
+				COALESCE(AVG(rf.rating), 0) AS avg_rating
+			FROM
+				favorite_facility ff
+			LEFT JOIN
+				facilities f ON ff.facility_id = f.facility_id
+			LEFT JOIN
+				facility_img fi ON f.facility_id = fi.facility_id
+			LEFT JOIN
+				review_facility rf ON f.facility_id = rf.facility_id
+			WHERE
+				ff.user_id = ?
+			GROUP BY
+				f.facility_id,
+				f.hourly_rate,
+				f.name,
+				f.latitude,
+				f.longitude,
+				fi.img
+			LIMIT ? OFFSET ?`,
 			[user_id, limit, offset]
 		);
 		req.favoriteFacility = favoriteFacility;

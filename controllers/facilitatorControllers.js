@@ -1,6 +1,7 @@
 import expressAsyncHandler from 'express-async-handler';
 import { pool } from '../config/db.js';
 import { validateTimeStamp } from '../utilities/DateValidation.js';
+import { start } from 'repl';
 
 const facilitatorCheck = expressAsyncHandler(async (req, res, next) => {
 	const { type, user_id } = req.user;
@@ -221,7 +222,7 @@ const facilityReview = expressAsyncHandler(async (req, res) => {
 });
 
 const facilitySuggestions = expressAsyncHandler(async (req, res, next) => {
-	const { latitude, longitude } = req.body;
+	const { latitude, longitude, trainer_id } = req.body;
 	if (!latitude || !longitude) {
 		res.status(400).json({
 			message: 'Location is missing',
@@ -234,6 +235,7 @@ const facilitySuggestions = expressAsyncHandler(async (req, res, next) => {
 	const offset = (page - 1) * limit;
 	const [suggestedFacility] = await pool.query(
 		`SELECT
+			f.facility_id,
 			f.name,
 			f.latitude,
 			f.longitude,
@@ -256,10 +258,46 @@ const facilitySuggestions = expressAsyncHandler(async (req, res, next) => {
 			f.latitude,
 			f.longitude,
 			f.hourly_rate
-		LIMIT ? OFFSET ?`,
+		LIMIT ? OFFSET ?;`,
 		[longitude, latitude, limit, offset]
 	);
-	req.suggestedFacility = suggestedFacility;
+	//TODO have to finish the filtering
+	const filteredSuggestedFacilities = suggestedFacility.filter(
+		async (facility) => {
+			const [facilityAvailable] = await pool.query(
+				`SELECT
+					fah.week_day,
+					fah.start_time,
+					fah.end_time,
+					fah.available
+				FROM
+					facility_availability_hours fah
+				WHERE
+					facility_id = ?`,
+				[facility.facility_id]
+			);
+			const { trainerAvailability } = req;
+			for (const {
+				week_day,
+				start_time,
+				end_time,
+			} of facilityAvailable) {
+				const availableTime = trainerAvailability.find(
+					({ week_day: w }) => w === week_day
+				);
+				if (start_time === null || end_time === null) continue;
+				const facilityStartTime = new Date(start_time);
+				const facilityEndTime = new Date(end_time);
+				const trainerStartTime = new Date(availableTime.start_time);
+				const trainerEndTime = new Date(availableTime.end_time);
+				if (!availableTime) return false;
+				if (trainerEndTime < facilityStartTime) return false;
+				if (trainerStartTime > facilityEndTime) return false;
+			}
+			return true;
+		}
+	);
+	req.suggestedFacility = filteredSuggestedFacilities;
 	next();
 });
 
