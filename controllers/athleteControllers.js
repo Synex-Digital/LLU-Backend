@@ -602,7 +602,7 @@ const athleteUpcomingSessions = expressAsyncHandler(async (req, res) => {
 	res.status(200).json({
 		data: {
 			profile: req.profile,
-			children: req.children.length === 0 ? null : req.children,
+			children: req?.children?.length ? null : req.children,
 			upcomingSessions: req.upcomingSessions,
 		},
 	});
