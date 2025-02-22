@@ -67,11 +67,7 @@ app.post('/webhook', (req, res) => {
 	}
 });
 
-app.post(
-	'/payment_webhook',
-	app.raw({ type: 'application/json' }),
-	handlePaymentWebhook
-);
+app.post('/payment_webhook', handlePaymentWebhook);
 
 app.use(notFound);
 app.use(errorHandler);

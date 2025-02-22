@@ -37,7 +37,6 @@ import { sanitizeInput } from '../middleware/dangerousHTMLMiddleware.js';
 import {
 	createCustomer,
 	createPaymentIntent,
-	handlePaymentWebhook,
 } from '../controllers/paymentControllers.js';
 
 const userRouter = Router();
