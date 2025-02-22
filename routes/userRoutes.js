@@ -39,7 +39,6 @@ import {
 	createPaymentIntent,
 	handlePaymentWebhook,
 } from '../controllers/paymentControllers.js';
-import { app } from '../index.js';
 
 const userRouter = Router();
 
