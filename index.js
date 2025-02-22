@@ -14,6 +14,7 @@ import { socketInitialize } from './realtime/socket.js';
 import { exec } from 'child_process';
 import { trainerRouter } from './routes/trainerRoutes.js';
 import { parentRouter } from './routes/parentRouter.js';
+import { handlePaymentWebhook } from './controllers/paymentControllers.js';
 
 dotenv.config();
 const app = express();
@@ -66,6 +67,12 @@ app.post('/webhook', (req, res) => {
 	}
 });
 
+app.post(
+	'/payment_webhook',
+	app.raw({ type: 'application/json' }),
+	handlePaymentWebhook
+);
+
 app.use(notFound);
 app.use(errorHandler);
 
@@ -86,4 +93,4 @@ const io = new Server(server, {
 
 io.on('connection', socketInitialize);
 
-export { io, app };
+export { io };
