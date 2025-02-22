@@ -34,6 +34,7 @@ const createPaymentIntent = asyncHandler(async (req, res) => {
 
 // Add this new webhook endpoint
 const handlePaymentWebhook = asyncHandler(async (req, res) => {
+	console.log('Received webhook event:', req.body);
 	const sig = req.headers['stripe-signature'];
 	let event;
 
