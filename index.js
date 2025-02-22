@@ -29,6 +29,13 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 app.use(cors());
+
+app.post(
+	'/payment_webhook',
+	express.raw({ type: 'application/json' }),
+	handlePaymentWebhook
+);
+
 app.use(mailerMiddleware);
 app.use(express.json());
 
@@ -66,11 +73,6 @@ app.post('/webhook', (req, res) => {
 		});
 	}
 });
-app.post(
-	'/payment_webhook',
-	express.raw({ type: 'application/json' }),
-	handlePaymentWebhook
-);
 
 app.use(notFound);
 app.use(errorHandler);
