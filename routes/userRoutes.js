@@ -39,6 +39,7 @@ import {
 	createPaymentIntent,
 	handlePaymentWebhook,
 } from '../controllers/paymentControllers.js';
+import { app } from '../index.js';
 
 const userRouter = Router();
 
@@ -107,7 +108,7 @@ userRouter.route('/payment').post(protect, createPaymentIntent);
 
 userRouter
 	.route('/payment_webhook')
-	.post(express.raw({ type: 'application/json' }), handlePaymentWebhook);
+	.post(app.raw({ type: 'application/json' }), handlePaymentWebhook);
 
 userRouter.route('/create_customer').post(protect, createCustomer);
 

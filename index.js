@@ -86,4 +86,4 @@ const io = new Server(server, {
 
 io.on('connection', socketInitialize);
 
-export { io };
+export { io, app };
