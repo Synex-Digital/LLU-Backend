@@ -37,6 +37,7 @@ import { sanitizeInput } from '../middleware/dangerousHTMLMiddleware.js';
 import {
 	createCustomer,
 	createPaymentIntent,
+	handlePaymentWebhook,
 } from '../controllers/paymentControllers.js';
 
 const userRouter = Router();
@@ -103,6 +104,8 @@ userRouter
 	.get(protect, ensureBookPersonalities, userGetReviewSummary);
 
 userRouter.route('/payment').post(protect, createPaymentIntent);
+
+userRouter.route('/payment_webhook').post(handlePaymentWebhook);
 
 userRouter.route('/create_customer').post(protect, createCustomer);
 
