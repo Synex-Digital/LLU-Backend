@@ -102,11 +102,9 @@ userRouter
 	.route('/book_summary')
 	.get(protect, ensureBookPersonalities, userGetReviewSummary);
 
-userRouter.route('/payment').post(protect, createPaymentIntent);
-
-// userRouter
-// 	.route('/payment_webhook')
-// 	.post(app.raw({ type: 'application/json' }), handlePaymentWebhook);
+userRouter
+	.route('/payment')
+	.post(protect, ensureBookPersonalities, createPaymentIntent);
 
 userRouter.route('/create_customer').post(protect, createCustomer);
 

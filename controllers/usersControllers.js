@@ -1163,6 +1163,7 @@ const userBookFacility = expressAsyncHandler(async (req, res, next) => {
 	});
 });
 
+//TODO prevent more than one booking
 const userGetReviewSummary = expressAsyncHandler(async (req, res) => {
 	const { user_id } = req.user;
 	let [[book]] = await pool.query(
