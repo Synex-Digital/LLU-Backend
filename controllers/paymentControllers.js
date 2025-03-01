@@ -89,30 +89,60 @@ const createPaymentIntent = asyncHandler(async (req, res) => {
 		trainer_id: trainer ? trainer.trainer_id : null,
 		trainer_amount: trainer ? trainer.hourly_rate : null,
 	};
-	let affectedRows;
+	let available;
 	if (trainer?.trainer_id) {
-		[{ affectedRows }] = await pool.query(
-			`INSERT INTO payments (user_id, total_amount, currency, trainer_id, facility_id, status) VALUES (?, ?, ?, ?, ?, ?)`,
-			[
-				user_id,
-				totalPrice,
-				currency,
-				trainer.trainer_id,
-				facility.facility_id,
-				'pending',
-			]
+		[[available]] = await pool.query(
+			`SELECT
+				*
+			FROM
+				payments
+			WHERE
+				user_id = ?
+			AND
+				trainer_id = ?
+			AND
+				facility_id = ?`,
+			[user_id, trainer?.trainer_id, facility.facility_id]
 		);
 	} else {
-		[{ affectedRows }] = await pool.query(
-			`INSERT INTO payments (user_id, total_amount, currency, facility_id, status) VALUES (?, ?, ?, ?, ?)`,
-			[user_id, totalPrice, currency, facility.facility_id, 'pending']
+		[[available]] = await pool.query(
+			`SELECT
+				*
+			FROM
+				payments_facility
+			WHERE
+				user_id = ?
+			AND
+				facility_id = ?`,
+			[user_id, facility.facility_id]
 		);
 	}
-	if (affectedRows === 0) {
-		res.status(400).json({
-			message: 'Payment creation failed',
-		});
-		return;
+	if (!available) {
+		let affectedRows;
+		if (trainer?.trainer_id) {
+			[{ affectedRows }] = await pool.query(
+				`INSERT INTO payments (user_id, total_amount, currency, trainer_id, facility_id, status) VALUES (?, ?, ?, ?, ?, ?)`,
+				[
+					user_id,
+					totalPrice,
+					currency,
+					trainer.trainer_id,
+					facility.facility_id,
+					'pending',
+				]
+			);
+		} else {
+			[{ affectedRows }] = await pool.query(
+				`INSERT INTO payments (user_id, total_amount, currency, facility_id, status) VALUES (?, ?, ?, ?, ?)`,
+				[user_id, totalPrice, currency, facility.facility_id, 'pending']
+			);
+		}
+		if (affectedRows === 0) {
+			res.status(400).json({
+				message: 'Payment creation failed',
+			});
+			return;
+		}
 	}
 	const paymentIntent = await stripe.paymentIntents.create({
 		amount: totalPrice * 100,
