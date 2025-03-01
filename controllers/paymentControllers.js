@@ -203,14 +203,42 @@ const handlePaymentWebhook = asyncHandler(async (req, res) => {
 	res.status(200).json({ received: true });
 });
 
+const handleCanceledPayment = async (paymentIntent) => {};
+
 const handleSuccessfulPayment = async (paymentIntent) => {
 	try {
-		console.log('Payment successful:', paymentIntent.id);
-		console.log('Amount:', paymentIntent.amount);
-		console.log('Customer:', paymentIntent.customer);
-
 		const description = JSON.parse(paymentIntent.description);
-		console.log('Description:', description);
+		if (description.trainer_id) {
+			await pool.query(
+				`UPDATE payments
+				SET status = 'success'
+				WHERE
+					user_id = ?
+				AND
+					trainer_id = ?
+				AND
+					facility_id = ?
+				AND
+					status = 'pending'`,
+				[
+					description.user_id,
+					description.trainer_id,
+					description.facility_id,
+				]
+			);
+		} else {
+			await pool.query(
+				`UPDATE payments_facility
+				SET status = 'success'
+				WHERE
+					user_id = ?
+				AND
+					facility_id = ?
+				AND
+					status = 'pending'`,
+				[description.user_id, description.facility_id]
+			);
+		}
 	} catch (error) {
 		console.error('Error handling successful payment:', error);
 		throw error;
