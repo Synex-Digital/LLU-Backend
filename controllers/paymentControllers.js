@@ -206,9 +206,11 @@ const handlePaymentWebhook = asyncHandler(async (req, res) => {
 const handleCanceledPayment = async (paymentIntent) => {};
 
 const handleSuccessfulPayment = async (paymentIntent) => {
+	const connection = await pool.getConnection();
 	try {
+		await connection.beginTransaction();
 		const description = JSON.parse(paymentIntent.description);
-		if (description.trainer_id) {
+		if (description?.trainer_id) {
 			await pool.query(
 				`UPDATE payments
 				SET status = 'success'
@@ -239,7 +241,21 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 				[description.user_id, description.facility_id]
 			);
 		}
+		await pool.query(
+			`DELETE
+			FROM
+				books
+			WHERE
+				user_id = ?
+			AND
+				facility_id = ?`,
+			[description.user_id, description.facility_id]
+		);
+		await connection.commit();
+		connection.release();
 	} catch (error) {
+		await connection.rollback();
+		connection.release();
 		console.error('Error handling successful payment:', error);
 		throw error;
 	}
