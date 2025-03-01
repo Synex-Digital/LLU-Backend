@@ -101,7 +101,9 @@ const createPaymentIntent = asyncHandler(async (req, res) => {
 			AND
 				trainer_id = ?
 			AND
-				facility_id = ?`,
+				facility_id = ?
+			AND
+				status = 'pending'`,
 			[user_id, trainer?.trainer_id, facility.facility_id]
 		);
 	} else {
@@ -113,7 +115,9 @@ const createPaymentIntent = asyncHandler(async (req, res) => {
 			WHERE
 				user_id = ?
 			AND
-				facility_id = ?`,
+				facility_id = ?
+			AND
+				status = 'pending'`,
 			[user_id, facility.facility_id]
 		);
 	}
