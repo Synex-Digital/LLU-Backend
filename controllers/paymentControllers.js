@@ -62,7 +62,7 @@ const createPaymentIntent = asyncHandler(async (req, res) => {
 		[book.facility_id]
 	);
 	let trainer;
-	if (book.trainer_id) {
+	if (book?.trainer_id) {
 		[[trainer]] = await pool.query(
 			`SELECT
 				t.trainer_id,
@@ -90,7 +90,7 @@ const createPaymentIntent = asyncHandler(async (req, res) => {
 		trainer_amount: trainer ? trainer.hourly_rate : null,
 	};
 	let affectedRows;
-	if (trainer_id) {
+	if (trainer?.trainer_id) {
 		[{ affectedRows }] = await pool.query(
 			`INSERT INTO payments (user_id, total_amount, currency, trainer_id, facility_id, status) VALUES (?, ?, ?, ?, ?, ?)`,
 			[
