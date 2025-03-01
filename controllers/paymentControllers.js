@@ -13,8 +13,7 @@ const createPaymentIntent = asyncHandler(async (req, res) => {
 	let [[book]] = await pool.query(
 		`SELECT
 			facility_id,
-			trainer_id,
-			time
+			trainer_id
 		FROM
 			books
 		WHERE
@@ -24,8 +23,7 @@ const createPaymentIntent = asyncHandler(async (req, res) => {
 	if (!book) {
 		[[book]] = await pool.query(
 			`SELECT
-				facility_id,
-				time
+				facility_id
 			FROM
 				book_facilities
 			WHERE
@@ -90,33 +88,24 @@ const createPaymentIntent = asyncHandler(async (req, res) => {
 		facility_amount: facility.hourly_rate,
 		trainer_id: trainer ? trainer.trainer_id : null,
 		trainer_amount: trainer ? trainer.hourly_rate : null,
-		time: book.time,
 	};
 	let affectedRows;
 	if (trainer_id) {
 		[{ affectedRows }] = await pool.query(
-			`INSERT INTO payments (user_id, total_amount, currency, trainer_id, facility_id, time, status) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			`INSERT INTO payments (user_id, total_amount, currency, trainer_id, facility_id, status) VALUES (?, ?, ?, ?, ?, ?)`,
 			[
 				user_id,
 				totalPrice,
 				currency,
 				trainer.trainer_id,
 				facility.facility_id,
-				book.time,
 				'pending',
 			]
 		);
 	} else {
 		[{ affectedRows }] = await pool.query(
-			`INSERT INTO payments (user_id, total_amount, currency, facility_id, time, status) VALUES (?, ?, ?, ?, ?, ?)`,
-			[
-				user_id,
-				totalPrice,
-				currency,
-				facility.facility_id,
-				book.time,
-				'pending',
-			]
+			`INSERT INTO payments (user_id, total_amount, currency, facility_id, status) VALUES (?, ?, ?, ?, ?)`,
+			[user_id, totalPrice, currency, facility.facility_id, 'pending']
 		);
 	}
 	if (affectedRows === 0) {
