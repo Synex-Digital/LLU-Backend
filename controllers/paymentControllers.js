@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 import asyncHandler from 'express-async-handler';
 import dotenv from 'dotenv';
-import pool from '../config/db.js';
+import { pool } from '../config/db.js';
 
 dotenv.config();
 
