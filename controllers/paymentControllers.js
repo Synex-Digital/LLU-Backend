@@ -211,7 +211,7 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 		await connection.beginTransaction();
 		const description = JSON.parse(paymentIntent.description);
 		if (description?.trainer_id) {
-			await pool.query(
+			await connection.query(
 				`UPDATE payments
 				SET status = 'success'
 				WHERE
@@ -229,7 +229,7 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 				]
 			);
 		} else {
-			await pool.query(
+			await connection.query(
 				`UPDATE payments_facility
 				SET status = 'success'
 				WHERE
@@ -241,7 +241,7 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 				[description.user_id, description.facility_id]
 			);
 		}
-		await pool.query(
+		await connection.query(
 			`DELETE
 			FROM
 				books
