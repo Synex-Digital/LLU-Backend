@@ -210,8 +210,10 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 	try {
 		await connection.beginTransaction();
 		const description = JSON.parse(paymentIntent.description);
+		let affectedRows;
 		if (description?.trainer_id) {
-			await connection.query(
+			//TODO have to check affectedRows for every query and add sessions
+			[{ affectedRows }] = await connection.query(
 				`UPDATE payments
 				SET status = 'success'
 				WHERE
@@ -228,8 +230,16 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 					description.facility_id,
 				]
 			);
+			if (affectedRows === 0) {
+				res.status(400).json({
+					message: 'Payment update failed',
+				});
+				await connection.rollback();
+				connection.release();
+				return;
+			}
 		} else {
-			await connection.query(
+			[{ affectedRows }] = await connection.query(
 				`UPDATE payments_facility
 				SET status = 'success'
 				WHERE
@@ -240,8 +250,16 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 					status = 'pending'`,
 				[description.user_id, description.facility_id]
 			);
+			if (affectedRows === 0) {
+				res.status(400).json({
+					message: 'Payment update failed',
+				});
+				await connection.rollback();
+				connection.release();
+				return;
+			}
 		}
-		await connection.query(
+		[{ affectedRows }] = await connection.query(
 			`DELETE
 			FROM
 				books
@@ -251,6 +269,47 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 				facility_id = ?`,
 			[description.user_id, description.facility_id]
 		);
+		if (affectedRows === 0) {
+			res.status(400).json({
+				message: 'Payment update failed',
+			});
+			await connection.rollback();
+			connection.release();
+			return;
+		}
+		let insertId;
+		[{ affectedRows, insertId }] = await connection.query(
+			`INSERT INTO facility_sessions (user_id, facility_id, trainer_id, name, status) VALUES (?, ?, ?, ?, ?)`,
+			[
+				description.user_id,
+				description.facility_id,
+				description.trainer_id,
+				'session',
+				'upcoming',
+			]
+		);
+		if (affectedRows === 0) {
+			res.status(400).json({
+				message: 'Payment update failed',
+			});
+			await connection.rollback();
+			connection.release();
+			return;
+		}
+		if (description?.trainer_id) {
+			[{ affectedRows }] = await connection.query(
+				`INSERT INTO trainer_sessions (facility_sessions_id, trainer_id) VALUES (?, ?)`,
+				[insertId, description.trainer_id]
+			);
+			if (affectedRows === 0) {
+				res.status(400).json({
+					message: 'Payment update failed',
+				});
+				await connection.rollback();
+				connection.release();
+				return;
+			}
+		}
 		await connection.commit();
 		connection.release();
 	} catch (error) {
