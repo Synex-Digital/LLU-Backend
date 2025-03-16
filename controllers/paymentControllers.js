@@ -211,43 +211,68 @@ const handleCanceledPayment = async (paymentIntent) => {
 		let affectedRows;
 		if (description?.trainer_id) {
 			[{ affectedRows }] = await connection.query(
-				`UPDATE payments
-					SET status = 'cancelled'
+				`DELETE FROM payments
 				WHERE
-					book_id = ?
-				AND
-					status = 'pending'`,
+					book_id = ?`,
 				[description.book_id]
 			);
 			if (affectedRows === 0) {
+				await connection.rollback();
+				connection.release();
 				res.status(400).json({
 					message: 'Payment update failed',
 				});
+				return;
+			}
+			[{ affectedRows }] = await connection.query(
+				`DELETE FROM books
+				WHERE
+					book_id = ?`,
+				[description.book_id]
+			);
+			if (affectedRows === 0) {
 				await connection.rollback();
 				connection.release();
+				res.status(400).json({
+					message: 'Payment update failed',
+				});
 				return;
 			}
 		} else {
 			[{ affectedRows }] = await connection.query(
-				`UPDATE payments_facility
-					SET status = 'cancelled'
+				`DELETE FROM payments_facility
 				WHERE
-					book_id = ?
-				AND
-					status = 'pending'`,
+					book_id = ?`,
 				[description.book_id]
 			);
 			if (affectedRows === 0) {
+				await connection.rollback();
+				connection.release();
 				res.status(400).json({
 					message: 'Payment update failed',
 				});
+				return;
+			}
+			[{ affectedRows }] = await connection.query(
+				`DELETE FROM book_facilities
+				WHERE
+					book_facility_id = ?`,
+				[description.book_id]
+			);
+			if (affectedRows === 0) {
 				await connection.rollback();
 				connection.release();
+				res.status(400).json({
+					message: 'Payment update failed',
+				});
 				return;
 			}
 		}
 		await connection.commit();
 		connection.release();
+		res.status(200).json({
+			message: 'Payment canceled successfully',
+		});
 	} catch (error) {
 		await connection.rollback();
 		connection.release();

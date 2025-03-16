@@ -1164,8 +1164,6 @@ const userBooksFacilityWithTrainer = expressAsyncHandler(async (req, res) => {
 			*
 		FROM
 			books b
-		RIGHT JOIN
-			payments p ON p.book_id = b.book_id
 		WHERE
 			b.user_id = ?
 		AND
@@ -1173,9 +1171,7 @@ const userBooksFacilityWithTrainer = expressAsyncHandler(async (req, res) => {
 		AND
 			b.facility_id = ?
 		AND
-			b.time = ?
-		AND
-			p.status = 'success'`,
+			b.time = ?`,
 		[user_id, trainer_id, facility_id, date]
 	);
 	if (availableBooking) {
@@ -1280,30 +1276,26 @@ const userBookFacility = expressAsyncHandler(async (req, res, next) => {
 		});
 		return;
 	}
-
-	const [[availableBooking]] = await pool.query(
-		`SELECT 
+	const [[availableFacilityBooking]] = await pool.query(
+		`SELECT
 			*
 		FROM
-			book_facilities b
-		RIGHT JOIN
-			payments_facility p ON p.book_id = b.book_facility_id
+			book_facilities
 		WHERE
 			user_id = ?
 		AND
 			facility_id = ?
 		AND
-			time = ?
-		AND
-			p.status = 'success'`,
+			time = ?`,
 		[user_id, facility_id, date]
 	);
-	if (availableBooking) {
+	if (availableFacilityBooking) {
 		res.status(403).json({
 			message: 'user already booked the facility',
 		});
 		return;
 	}
+
 	const [{ affectedRows, insertId }] = await pool.query(
 		`INSERT INTO book_facilities (user_id, facility_id, time, start_time, end_time) VALUES (?, ?, ?, ?, ?)`,
 		[
