@@ -5,7 +5,13 @@ import {
 	generateAccessToken,
 	generateRefreshToken,
 } from '../utilities/generateToken.js';
+import Stripe from 'stripe';
+import dotenv from 'dotenv';
 import { generateOTP } from '../utilities/generateOTP.js';
+
+dotenv.config();
+
+const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
 const authLogout = expressAsyncHandler(async (req, res) => {
 	const { accessToken, refreshToken } = req.body;
@@ -208,9 +214,12 @@ const authRegister = expressAsyncHandler(async (req, res) => {
 	}
 	const [firstName, ...restName] = full_name.split(' ');
 	const lastName = restName.join(' ');
+	const customer = await stripe.customers.create({
+		email: email,
+	});
 	const [{ affectedRows, insertId }] = await pool.query(
-		`INSERT INTO users (first_name, last_name, email, password) VALUES (?, ?, ?, ?)`,
-		[firstName, lastName, email, req.hash]
+		`INSERT INTO users (first_name, last_name, email, password, customer_id) VALUES (?, ?, ?, ?, ?)`,
+		[firstName, lastName, email, req.hash, customer.id]
 	);
 	if (affectedRows === 0) throw new Error('Could not create user');
 	res.status(201).json({
@@ -492,7 +501,20 @@ const specifiedRegister = expressAsyncHandler(async (req, res, next) => {
 const authValidates = expressAsyncHandler(async (req, res, next) => {
 	const { email } = req.body;
 	const [[user]] = await pool.query(
-		`SELECT user_id, type, first_name, last_name, profile_picture, img, email, password FROM users WHERE email = ?`,
+		`SELECT 
+			user_id,
+			type,
+			first_name,
+			last_name,
+			profile_picture,
+			img,
+			email,
+			password,
+			customer_id
+		FROM
+			users
+		WHERE
+			email = ?`,
 		[email]
 	);
 	if (!user) {

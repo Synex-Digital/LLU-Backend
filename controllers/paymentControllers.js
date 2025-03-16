@@ -8,7 +8,17 @@ dotenv.config();
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
 const createPaymentIntent = asyncHandler(async (req, res) => {
-	const { currency, customerId } = req.body;
+	const { currency, customerId, book_id } = req.body;
+	if (
+		(!currency && typeof currency !== 'string') ||
+		(!customerId && typeof customerId !== 'string') ||
+		(!book_id && typeof book_id !== 'number')
+	) {
+		res.status(400).json({
+			message: 'Invalid or missing currency or customerId or book_id',
+		});
+		return;
+	}
 	const { user_id } = req.user;
 	let [[book]] = await pool.query(
 		`SELECT
@@ -17,8 +27,10 @@ const createPaymentIntent = asyncHandler(async (req, res) => {
 		FROM
 			books
 		WHERE
-			user_id = ?`,
-		[user_id]
+			user_id = ?
+		AND
+			book = ?`,
+		[user_id, book_id]
 	);
 	if (!book) {
 		[[book]] = await pool.query(
@@ -27,8 +39,10 @@ const createPaymentIntent = asyncHandler(async (req, res) => {
 			FROM
 				book_facilities
 			WHERE
-				user_id = ?`,
-			[user_id]
+				user_id = ?
+			AND
+				book_facility_id = ?`,
+			[user_id, book_id]
 		);
 	}
 	if (!book) {
@@ -88,6 +102,7 @@ const createPaymentIntent = asyncHandler(async (req, res) => {
 		facility_amount: facility.hourly_rate,
 		trainer_id: trainer ? trainer.trainer_id : null,
 		trainer_amount: trainer ? trainer.hourly_rate : null,
+		book_id: book_id,
 	};
 	let available;
 	if (trainer?.trainer_id) {
@@ -122,25 +137,10 @@ const createPaymentIntent = asyncHandler(async (req, res) => {
 		);
 	}
 	if (!available) {
-		let affectedRows;
-		if (trainer?.trainer_id) {
-			[{ affectedRows }] = await pool.query(
-				`INSERT INTO payments (user_id, total_amount, currency, trainer_id, facility_id, status) VALUES (?, ?, ?, ?, ?, ?)`,
-				[
-					user_id,
-					totalPrice,
-					currency,
-					trainer.trainer_id,
-					facility.facility_id,
-					'pending',
-				]
-			);
-		} else {
-			[{ affectedRows }] = await pool.query(
-				`INSERT INTO payments (user_id, total_amount, currency, facility_id, status) VALUES (?, ?, ?, ?, ?)`,
-				[user_id, totalPrice, currency, facility.facility_id, 'pending']
-			);
-		}
+		const [{ affectedRows }] = await pool.query(
+			`INSERT INTO payments (total_amount, currency, status, book_id) VALUES (?, ?, ?, ?, ?, ?)`,
+			[totalPrice, currency, 'pending', book_id]
+		);
 		if (affectedRows === 0) {
 			res.status(400).json({
 				message: 'Payment creation failed',
@@ -203,9 +203,7 @@ const handlePaymentWebhook = asyncHandler(async (req, res) => {
 	res.status(200).json({ received: true });
 });
 
-const handleCanceledPayment = async (paymentIntent) => {};
-
-const handleSuccessfulPayment = async (paymentIntent) => {
+const handleCanceledPayment = async (paymentIntent) => {
 	const connection = await pool.getConnection();
 	try {
 		await connection.beginTransaction();
@@ -214,20 +212,12 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 		if (description?.trainer_id) {
 			[{ affectedRows }] = await connection.query(
 				`UPDATE payments
-				SET status = 'success'
+					SET status = 'cancelled'
 				WHERE
-					user_id = ?
-				AND
-					trainer_id = ?
-				AND
-					facility_id = ?
+					book_id = ?
 				AND
 					status = 'pending'`,
-				[
-					description.user_id,
-					description.trainer_id,
-					description.facility_id,
-				]
+				[description.book_id]
 			);
 			if (affectedRows === 0) {
 				res.status(400).json({
@@ -240,14 +230,12 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 		} else {
 			[{ affectedRows }] = await connection.query(
 				`UPDATE payments_facility
-				SET status = 'success'
+					SET status = 'cancelled'
 				WHERE
-					user_id = ?
-				AND
-					facility_id = ?
+					book_id = ?
 				AND
 					status = 'pending'`,
-				[description.user_id, description.facility_id]
+				[description.book_id]
 			);
 			if (affectedRows === 0) {
 				res.status(400).json({
@@ -258,33 +246,91 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 				return;
 			}
 		}
-		[{ affectedRows }] = await connection.query(
-			`DELETE
-			FROM
-				books
-			WHERE
-				user_id = ?
-			AND
-				facility_id = ?`,
-			[description.user_id, description.facility_id]
-		);
-		if (affectedRows === 0) {
-			res.status(400).json({
-				message: 'Payment update failed',
-			});
-			await connection.rollback();
-			connection.release();
-			return;
+		await connection.commit();
+		connection.release();
+	} catch (error) {
+		await connection.rollback();
+		connection.release();
+		console.error('Error handling canceled payment:', error);
+		throw error;
+	}
+};
+
+const handleSuccessfulPayment = async (paymentIntent) => {
+	const connection = await pool.getConnection();
+	try {
+		await connection.beginTransaction();
+		const description = JSON.parse(paymentIntent.description);
+		let affectedRows;
+		if (description?.trainer_id) {
+			[{ affectedRows }] = await connection.query(
+				`UPDATE payments
+					SET status = 'success'
+				WHERE
+					book_id = ?
+				AND
+					status = 'pending'`,
+				[description.book_id]
+			);
+			if (affectedRows === 0) {
+				res.status(400).json({
+					message: 'Payment update failed',
+				});
+				await connection.rollback();
+				connection.release();
+				return;
+			}
+		} else {
+			[{ affectedRows }] = await connection.query(
+				`UPDATE payments_facility
+					SET status = 'success'
+				WHERE
+					book_id = ?
+					status = 'pending'`,
+				[description.book_id]
+			);
+			if (affectedRows === 0) {
+				res.status(400).json({
+					message: 'Payment update failed',
+				});
+				await connection.rollback();
+				connection.release();
+				return;
+			}
 		}
+		const [[{ first_name, start_time, end_time }]] = await connection.query(
+			`SELECT
+				u.first_name,
+				b.start_time,
+				b.end_time
+			FROM
+				books b
+			LEFT JOIN
+				users u ON b.user_id = u.user_id
+			WHERE
+				b.book_id = ?`,
+			[description.book_id]
+		);
+		const [[{ name }]] = await connection.query(
+			`SELECT
+				name
+			FROM
+				facilities
+			WHERE
+				facility_id = ?`,
+			[description.facility_id]
+		);
 		let insertId;
 		[{ affectedRows, insertId }] = await connection.query(
-			`INSERT INTO facility_sessions (user_id, facility_id, trainer_id, name, status) VALUES (?, ?, ?, ?, ?)`,
+			`INSERT INTO facility_sessions (user_id, facility_id, trainer_id, name, status, start_time, end_time) VALUES (?, ?, ?, ?, ?, ?, ?)`,
 			[
 				description.user_id,
 				description.facility_id,
 				description.trainer_id,
-				'session',
+				`${first_name} -> ${name}`,
 				'upcoming',
+				start_time,
+				end_time,
 			]
 		);
 		if (affectedRows === 0) {
@@ -319,17 +365,4 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 	}
 };
 
-const createCustomer = asyncHandler(async (req, res) => {
-	const { email } = req.body;
-	const customer = await stripe.customers.create({
-		email: email,
-	});
-
-	res.status(200).json({
-		data: {
-			customerId: customer.id,
-		},
-	});
-});
-
-export { createPaymentIntent, createCustomer, handlePaymentWebhook };
+export { createPaymentIntent, handlePaymentWebhook };

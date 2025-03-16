@@ -35,10 +35,7 @@ import {
 	uploadMultipleToS3,
 } from '../middleware/uploadMiddleware.js';
 import { sanitizeInput } from '../middleware/dangerousHTMLMiddleware.js';
-import {
-	createCustomer,
-	createPaymentIntent,
-} from '../controllers/paymentControllers.js';
+import { createPaymentIntent } from '../controllers/paymentControllers.js';
 
 const userRouter = Router();
 
@@ -107,7 +104,5 @@ userRouter
 userRouter
 	.route('/payment')
 	.post(protect, ensureBookPersonalities, createPaymentIntent);
-
-userRouter.route('/create_customer').post(protect, createCustomer);
 
 export { userRouter };

@@ -1160,7 +1160,22 @@ const userBooksFacilityWithTrainer = expressAsyncHandler(async (req, res) => {
 		return;
 	}
 	const [[availableBooking]] = await pool.query(
-		`SELECT * FROM books WHERE user_id = ? AND trainer_id = ? AND facility_id = ? AND time = ?`,
+		`SELECT 
+			*
+		FROM
+			books b
+		RIGHT JOIN
+			payments p ON p.book_id = b.book_id
+		WHERE
+			b.user_id = ?
+		AND
+			b.trainer_id = ?
+		AND
+			b.facility_id = ?
+		AND
+			b.time = ?
+		AND
+			p.status = 'success'`,
 		[user_id, trainer_id, facility_id, date]
 	);
 	if (availableBooking) {
@@ -1267,7 +1282,20 @@ const userBookFacility = expressAsyncHandler(async (req, res, next) => {
 	}
 
 	const [[availableBooking]] = await pool.query(
-		`SELECT * FROM book_facilities WHERE user_id = ? AND facility_id = ? AND time = ?`,
+		`SELECT 
+			*
+		FROM
+			book_facilities b
+		RIGHT JOIN
+			payments_facility p ON p.book_id = b.book_facility_id
+		WHERE
+			user_id = ?
+		AND
+			facility_id = ?
+		AND
+			time = ?
+		AND
+			p.status = 'success'`,
 		[user_id, facility_id, date]
 	);
 	if (availableBooking) {
