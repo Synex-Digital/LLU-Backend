@@ -2,6 +2,7 @@ import expressAsyncHandler from 'express-async-handler';
 import { pool } from '../config/db.js';
 import { generateRandomString } from '../utilities/generateRandomString.js';
 import { validateDate } from '../utilities/DateValidation.js';
+import generateBookingTime from '../utilities/generateBookingTime.js';
 
 const userAddReview = expressAsyncHandler(async (req, res) => {
 	const { trainer_id } = req.body;
@@ -1103,9 +1104,64 @@ const userBooksFacilityWithTrainer = expressAsyncHandler(async (req, res) => {
 		});
 		return;
 	}
+	const [[availableTrainer]] = await pool.query(
+		`SELECT * FROM trainers WHERE trainer_id = ?`,
+		[trainer_id]
+	);
+	if (!availableTrainer) {
+		res.status(403).json({
+			message: 'Trainer is not available for booking',
+		});
+		return;
+	}
+	const [[commonTime]] = await pool.query(
+		`SELECT 
+			f.week_day,
+			GREATEST(f.start_time, t.start_time) AS common_start_time,
+			LEAST(f.end_time, t.end_time) AS common_end_time
+		FROM 
+			facility_availability_hours f
+		JOIN
+			trainer_availability_hours t
+			ON f.week_day = t.week_day
+			AND f.available = 1
+			AND t.available = 1
+			AND GREATEST(f.start_time, t.start_time) < LEAST(f.end_time, t.end_time)
+		WHERE
+			f.week_day = ?
+		AND
+			f.facility_id = ?
+		AND
+			t.trainer_id = ?`,
+		[req.weekDay, facility_id, trainer_id]
+	);
+	const [[{ booking_count }]] = await pool.query(
+		`SELECT 
+			COUNT(*) AS booking_count
+		FROM
+			books
+		WHERE
+			facility_id = ?
+		AND
+			trainer_id = ?
+		AND
+			time = ?`,
+		[facility_id, trainer_id, date]
+	);
+	const bookingTime = generateBookingTime(commonTime, booking_count);
+	console.log(commonTime);
+	console.log(bookingTime);
+	const offsetEndTime = new Date(`1970-01-01T${bookingTime.end_time}`);
+	const commonEndTime = new Date(`1970-01-01T${commonTime.common_end_time}`);
+	if (offsetEndTime > commonEndTime) {
+		res.status(403).json({
+			message: 'Trainer or Facility is not available at this time',
+		});
+		return;
+	}
 	const [[availableBooking]] = await pool.query(
-		`SELECT * FROM books WHERE user_id = ? AND trainer_id = ? AND facility_id = ?`,
-		[user_id, trainer_id, facility_id]
+		`SELECT * FROM books WHERE user_id = ? AND trainer_id = ? AND facility_id = ? AND time = ?`,
+		[user_id, trainer_id, facility_id, date]
 	);
 	if (availableBooking) {
 		res.status(403).json({
@@ -1113,13 +1169,21 @@ const userBooksFacilityWithTrainer = expressAsyncHandler(async (req, res) => {
 		});
 		return;
 	}
-	const [{ affectedRows }] = await pool.query(
-		`INSERT INTO books (user_id, facility_id, trainer_id, time) VALUES (?, ?, ?, ?)`,
-		[user_id, facility_id, trainer_id, date]
+	const [{ affectedRows, insertId }] = await pool.query(
+		`INSERT INTO books (user_id, facility_id, trainer_id, time, start_time, end_time) VALUES (?, ?, ?, ?, ?, ?)`,
+		[
+			user_id,
+			facility_id,
+			trainer_id,
+			date,
+			bookingTime.start_time,
+			bookingTime.end_time,
+		]
 	);
 	if (affectedRows === 0)
 		throw new Error('Failed to book facility with trainer');
 	res.status(200).json({
+		bookId: insertId,
 		message: 'Successfully booked facility with trainer',
 	});
 });
@@ -1139,13 +1203,72 @@ const userBookFacility = expressAsyncHandler(async (req, res, next) => {
 		});
 		return;
 	}
+	const dateObj = new Date(date);
+	const dayIndex = dateObj.getDay();
+	const weekdays = [
+		'sunday',
+		'monday',
+		'tuesday',
+		'wednesday',
+		'thursday',
+		'friday',
+		'saturday',
+	];
+	req.weekDay = weekdays[dayIndex];
+	const [[availableFacility]] = await pool.query(
+		`SELECT * FROM facilities WHERE facility_id = ?`,
+		[facility_id]
+	);
+	if (!availableFacility) {
+		res.status(403).json({
+			message: 'Facility is not available for booking',
+		});
+		return;
+	}
+
 	if (facility_id && trainer_id) {
 		next();
 		return;
 	}
+
+	const [[commonTime]] = await pool.query(
+		`SELECT
+			f.week_day,
+			f.start_time AS common_start_time,
+			f.end_time AS common_end_time
+		FROM
+			facility_availability_hours f
+		WHERE
+			f.week_day = ?
+		AND
+			f.facility_id = ?`,
+		[weekdays[dayIndex], facility_id]
+	);
+	const [[{ booking_count }]] = await pool.query(
+		`SELECT 
+			COUNT(*) AS booking_count
+		FROM
+			book_facilities
+		WHERE
+			facility_id = ?
+		AND
+			time = ?`,
+		[facility_id, date]
+	);
+	console.log(commonTime);
+	const bookingTime = generateBookingTime(commonTime, booking_count);
+	const offsetEndTime = new Date(`1970-01-01T${bookingTime.end_time}`);
+	const commonEndTime = new Date(`1970-01-01T${commonTime.end_time}`);
+	if (offsetEndTime > commonEndTime) {
+		res.status(403).json({
+			message: 'Facility is not available at this time',
+		});
+		return;
+	}
+
 	const [[availableBooking]] = await pool.query(
-		`SELECT * FROM book_facilities WHERE user_id = ? AND facility_id = ?`,
-		[user_id, facility_id]
+		`SELECT * FROM book_facilities WHERE user_id = ? AND facility_id = ? AND time = ?`,
+		[user_id, facility_id, date]
 	);
 	if (availableBooking) {
 		res.status(403).json({
@@ -1153,19 +1276,32 @@ const userBookFacility = expressAsyncHandler(async (req, res, next) => {
 		});
 		return;
 	}
-	const [{ affectedRows }] = await pool.query(
-		`INSERT INTO book_facilities (user_id, facility_id, time) VALUES (?, ?, ?)`,
-		[user_id, facility_id, date]
+	const [{ affectedRows, insertId }] = await pool.query(
+		`INSERT INTO book_facilities (user_id, facility_id, time, start_time, end_time) VALUES (?, ?, ?, ?, ?)`,
+		[
+			user_id,
+			facility_id,
+			date,
+			bookingTime.start_time,
+			bookingTime.end_time,
+		]
 	);
 	if (affectedRows === 0) throw new Error('Failed to book facility');
 	res.status(200).json({
+		bookId: insertId,
 		message: 'Successfully booked facility',
 	});
 });
 
-//TODO prevent more than one booking
 const userGetReviewSummary = expressAsyncHandler(async (req, res) => {
 	const { user_id } = req.user;
+	const { book_id } = req.body;
+	if (!book_id || typeof book_id !== 'number') {
+		res.status(400).json({
+			message: 'book_id is missing or of wrong datatype',
+		});
+		return;
+	}
 	let [[book]] = await pool.query(
 		`SELECT
 			facility_id,
@@ -1174,8 +1310,10 @@ const userGetReviewSummary = expressAsyncHandler(async (req, res) => {
 		FROM
 			books
 		WHERE
-			user_id = ?`,
-		[user_id]
+			user_id = ?
+		AND
+			book_id = ?`,
+		[user_id, book_id]
 	);
 	if (!book) {
 		[[book]] = await pool.query(
@@ -1185,8 +1323,10 @@ const userGetReviewSummary = expressAsyncHandler(async (req, res) => {
 			FROM
 				book_facilities
 			WHERE
-				user_id = ?`,
-			[user_id]
+				user_id = ?
+			AND
+				book_facility_id = ?`,
+			[user_id, book_id]
 		);
 	}
 	if (!book) {
@@ -1220,6 +1360,7 @@ const userGetReviewSummary = expressAsyncHandler(async (req, res) => {
 		[book.facility_id]
 	);
 	let trainer;
+	let availableTime;
 	if (book.trainer_id) {
 		[[trainer]] = await pool.query(
 			`SELECT
@@ -1235,11 +1376,39 @@ const userGetReviewSummary = expressAsyncHandler(async (req, res) => {
 				t.trainer_id = ?`,
 			[book.trainer_id]
 		);
+		[[availableTime]] = await pool.query(
+			`SELECT 
+				b.time,
+				b.start_time,
+				b.end_time
+			FROM 
+				books b
+			WHERE 
+				user_id = ?
+			AND
+				book_id = ?`,
+			[user_id, book_id]
+		);
+	} else {
+		[[availableTime]] = await pool.query(
+			`SELECT 
+				b.time,
+				b.start_time,
+				b.end_time
+			FROM 
+				book_facilities b
+			WHERE 
+				user_id = ?
+			AND
+				book_facility_id = ?`,
+			[user_id, book_id]
+		);
 	}
 	let totalPrice = trainer
 		? facility.hourly_rate + trainer.hourly_rate
 		: facility.hourly_rate;
 	totalPrice = totalPrice + totalPrice * process.env.INCENTIVE_PERCENTAGE;
+	totalPrice = parseFloat(totalPrice.toFixed(4));
 	res.status(200).json({
 		data: {
 			time: new Date(book.time).toISOString().split('T')[0],
@@ -1247,6 +1416,50 @@ const userGetReviewSummary = expressAsyncHandler(async (req, res) => {
 			trainer,
 			totalAmount: totalPrice,
 		},
+	});
+});
+
+const userRemoveBooking = expressAsyncHandler(async (req, res) => {
+	const { user_id } = req.user;
+	const { book_id, facility_id, trainer_id } = req.body;
+	let affectedRows;
+	if (facility_id && trainer_id) {
+		[{ affectedRows }] = await pool.query(
+			`DELETE 
+			FROM
+				books
+			WHERE
+				book_id = ?
+			AND
+				user_id = ?
+			AND
+				facility_id = ?
+			AND
+				trainer_id = ?`,
+			[book_id, user_id, facility_id, trainer_id]
+		);
+	} else if (facility_id) {
+		[{ affectedRows }] = await pool.query(
+			`DELETE 
+			FROM
+				book_facilities
+			WHERE
+				book_facility_id = ?
+			AND
+				user_id = ?
+			AND
+				facility_id = ?`,
+			[book_id, user_id, facility_id]
+		);
+	}
+	if (affectedRows === 0) {
+		res.status(404).json({
+			message: 'No booking found',
+		});
+		return;
+	}
+	res.status(200).json({
+		message: 'Successfully removed booking',
 	});
 });
 
@@ -1281,4 +1494,5 @@ export {
 	userBookFacility,
 	ensureBookPersonalities,
 	userGetReviewSummary,
+	userRemoveBooking,
 };

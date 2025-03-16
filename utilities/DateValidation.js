@@ -15,4 +15,9 @@ const validateDate = (date) => {
 	return true;
 };
 
-export { validateTimeStamp, validateDate };
+const getWeekDay = (dateString) => {
+	const date = new Date(dateString);
+	return date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+};
+
+export { validateTimeStamp, validateDate, getWeekDay };

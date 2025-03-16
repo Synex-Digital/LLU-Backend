@@ -28,6 +28,7 @@ import {
 	userBooksFacilityWithTrainer,
 	ensureBookPersonalities,
 	userGetReviewSummary,
+	userRemoveBooking,
 } from '../controllers/usersControllers.js';
 import {
 	uploadMultiple,
@@ -96,7 +97,8 @@ userRouter
 		ensureBookPersonalities,
 		userBookFacility,
 		userBooksFacilityWithTrainer
-	);
+	)
+	.delete(protect, ensureBookPersonalities, userRemoveBooking);
 
 userRouter
 	.route('/book_summary')

@@ -212,7 +212,6 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 		const description = JSON.parse(paymentIntent.description);
 		let affectedRows;
 		if (description?.trainer_id) {
-			//TODO have to check affectedRows for every query and add sessions
 			[{ affectedRows }] = await connection.query(
 				`UPDATE payments
 				SET status = 'success'
