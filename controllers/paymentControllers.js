@@ -95,7 +95,6 @@ const createPaymentIntent = asyncHandler(async (req, res) => {
 	let totalPrice = trainer
 		? facility.hourly_rate + trainer.hourly_rate
 		: facility.hourly_rate;
-	totalPrice = totalPrice + totalPrice * process.env.INCENTIVE_PERCENTAGE;
 	const description = {
 		user_id: user_id,
 		facility_id: facility.facility_id,

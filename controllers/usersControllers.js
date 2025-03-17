@@ -1315,27 +1315,33 @@ const userBookFacility = expressAsyncHandler(async (req, res, next) => {
 
 const userGetReviewSummary = expressAsyncHandler(async (req, res) => {
 	const { user_id } = req.user;
-	const { book_id } = req.body;
-	if (!book_id || typeof book_id !== 'number') {
+	const { book_id, book_facility_id } = req.body;
+	if (
+		(!book_id || typeof book_id !== 'number') &&
+		(!book_facility_id || typeof book_facility_id !== 'number')
+	) {
 		res.status(400).json({
-			message: 'book_id is missing or of wrong datatype',
+			message:
+				'book_id or book_facility_id is missing or of wrong datatype',
 		});
 		return;
 	}
-	let [[book]] = await pool.query(
-		`SELECT
-			facility_id,
-			trainer_id,
-			time
-		FROM
-			books
-		WHERE
-			user_id = ?
-		AND
-			book_id = ?`,
-		[user_id, book_id]
-	);
-	if (!book) {
+	let book;
+	if (book_id) {
+		[[book]] = await pool.query(
+			`SELECT
+				facility_id,
+				trainer_id,
+				time
+			FROM
+				books
+			WHERE
+				user_id = ?
+			AND
+				book_id = ?`,
+			[user_id, book_id]
+		);
+	} else if (book_facility_id) {
 		[[book]] = await pool.query(
 			`SELECT
 				facility_id,
@@ -1346,7 +1352,7 @@ const userGetReviewSummary = expressAsyncHandler(async (req, res) => {
 				user_id = ?
 			AND
 				book_facility_id = ?`,
-			[user_id, book_id]
+			[user_id, book_facility_id]
 		);
 	}
 	if (!book) {
@@ -1421,13 +1427,12 @@ const userGetReviewSummary = expressAsyncHandler(async (req, res) => {
 				user_id = ?
 			AND
 				book_facility_id = ?`,
-			[user_id, book_id]
+			[user_id, book_facility_id]
 		);
 	}
 	let totalPrice = trainer
 		? facility.hourly_rate + trainer.hourly_rate
 		: facility.hourly_rate;
-	totalPrice = totalPrice + totalPrice * process.env.INCENTIVE_PERCENTAGE;
 	totalPrice = parseFloat(totalPrice.toFixed(4));
 	res.status(200).json({
 		data: {
