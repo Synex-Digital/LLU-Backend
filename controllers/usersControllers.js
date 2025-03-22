@@ -1135,6 +1135,12 @@ const userBooksFacilityWithTrainer = expressAsyncHandler(async (req, res) => {
 			t.trainer_id = ?`,
 		[req.weekDay, facility_id, trainer_id]
 	);
+	if (!commonTime) {
+		res.status(403).json({
+			message: 'Trainer or Facility is not available at this time',
+		});
+		return;
+	}
 	const [[{ booking_count }]] = await pool.query(
 		`SELECT 
 			COUNT(*) AS booking_count
@@ -1149,8 +1155,6 @@ const userBooksFacilityWithTrainer = expressAsyncHandler(async (req, res) => {
 		[facility_id, trainer_id, date]
 	);
 	const bookingTime = generateBookingTime(commonTime, booking_count);
-	console.log(commonTime);
-	console.log(bookingTime);
 	const offsetEndTime = new Date(`1970-01-01T${bookingTime.end_time}`);
 	const commonEndTime = new Date(`1970-01-01T${commonTime.common_end_time}`);
 	if (offsetEndTime > commonEndTime) {

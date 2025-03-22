@@ -12,6 +12,10 @@ import { generateOTP } from '../utilities/generateOTP.js';
 dotenv.config();
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+const customer = await stripe.customers.create({
+	email: 'shihabathlete@gmail.com',
+});
+console.log(customer.id);
 
 const authLogout = expressAsyncHandler(async (req, res) => {
 	const { accessToken, refreshToken } = req.body;
