@@ -131,7 +131,7 @@ const createPaymentIntent = asyncHandler(async (req, res) => {
 	}
 	if (!available) {
 		const [{ affectedRows }] = await pool.query(
-			`INSERT INTO payments (total_amount, currency, status, book_id) VALUES (?, ?, ?, ?, ?, ?)`,
+			`INSERT INTO payments (total_amount, currency, status, book_id) VALUES (?, ?, ?, ?)`,
 			[totalPrice, currency, 'pending', book_id]
 		);
 		if (affectedRows === 0) {
