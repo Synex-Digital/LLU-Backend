@@ -113,12 +113,8 @@ const createPaymentIntent = asyncHandler(async (req, res) => {
 			WHERE
 				book_id = ?
 			AND
-				trainer_id = ?
-			AND
-				facility_id = ?
-			AND
 				status = 'pending'`,
-			[book_id, trainer?.trainer_id, facility.facility_id]
+			[book_id]
 		);
 	} else {
 		[[available]] = await pool.query(
@@ -128,8 +124,6 @@ const createPaymentIntent = asyncHandler(async (req, res) => {
 				payments_facility
 			WHERE
 				book_id = ?
-			AND
-				facility_id = ?
 			AND
 				status = 'pending'`,
 			[book_id, facility.facility_id]
