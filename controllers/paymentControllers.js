@@ -29,7 +29,7 @@ const createPaymentIntent = asyncHandler(async (req, res) => {
 		WHERE
 			user_id = ?
 		AND
-			book = ?`,
+			book_id = ?`,
 		[user_id, book_id]
 	);
 	if (!book) {
