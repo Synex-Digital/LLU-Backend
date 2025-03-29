@@ -200,7 +200,7 @@ const athleteFilterTrainer = expressAsyncHandler(async (req, res) => {
 	let { page, limit } = req.query;
 	page = parseInt(page) || 1;
 	limit = parseInt(limit) || 10;
-	const {
+	let {
 		specialization,
 		starting_hourly_rate,
 		ending_hourly_rate,
@@ -211,19 +211,23 @@ const athleteFilterTrainer = expressAsyncHandler(async (req, res) => {
 		longitude,
 		latitude,
 	} = req.body;
-	if (
-		!specialization ||
-		!starting_hourly_rate ||
-		!ending_hourly_rate ||
-		!starting_ratings ||
-		!ending_ratings ||
-		!gender ||
-		!available
-	) {
+	if (!specialization || !gender || !available || !latitude || !longitude) {
 		res.status(400).json({
 			message: 'Missing values in request body',
 		});
 		return;
+	}
+	if (!starting_hourly_rate) starting_hourly_rate = 1;
+	if (!starting_ratings) starting_ratings = 0;
+	if (!ending_ratings) ending_ratings = 5;
+	if (!ending_hourly_rate) {
+		const [[{ highest_hourly_rate }]] = await pool.query(
+			`SELECT
+				MAX(hourly_rate) AS highest_hourly_rate
+			FROM
+				trainers`
+		);
+		ending_hourly_rate = highest_hourly_rate;
 	}
 	const offset = (page - 1) * limit;
 

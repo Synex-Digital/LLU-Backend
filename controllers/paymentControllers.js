@@ -8,31 +8,37 @@ dotenv.config();
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
 const createPaymentIntent = asyncHandler(async (req, res) => {
-	const { currency, customerId, book_id } = req.body;
+	const { currency, customerId, book_id, book_facility_id } = req.body;
+	const { user_id } = req.user;
 	if (
 		(!currency && typeof currency !== 'string') ||
-		(!customerId && typeof customerId !== 'string') ||
-		(!book_id && typeof book_id !== 'number')
+		(!customerId && typeof customerId !== 'string')
 	) {
 		res.status(400).json({
-			message: 'Invalid or missing currency or customerId or book_id',
+			message: 'Invalid or missing currency or customerId',
 		});
 		return;
 	}
-	const { user_id } = req.user;
-	let [[book]] = await pool.query(
-		`SELECT
-			facility_id,
-			trainer_id
-		FROM
-			books
-		WHERE
-			user_id = ?
-		AND
-			book_id = ?`,
-		[user_id, book_id]
-	);
-	if (!book) {
+	if (!book_id && !book_facility_id) {
+		res.status(400).json({
+			message: 'Invalid or missing book_id or book_facility_id',
+		});
+		return;
+	}
+	if (book_id && book_facility_id) {
+		res.status(400).json({
+			message: 'Please provide either book_id or book_facility_id',
+		});
+		return;
+	}
+	if (typeof book_id !== 'number' && typeof book_facility_id !== 'number') {
+		res.status(400).json({
+			message: 'Invalid or missing book_id or book_facility_id',
+		});
+		return;
+	}
+	let book;
+	if (book_facility_id) {
 		[[book]] = await pool.query(
 			`SELECT
 				facility_id
@@ -42,6 +48,19 @@ const createPaymentIntent = asyncHandler(async (req, res) => {
 				user_id = ?
 			AND
 				book_facility_id = ?`,
+			[user_id, book_facility_id]
+		);
+	} else if (book_id) {
+		[[book]] = await pool.query(
+			`SELECT
+				facility_id,
+				trainer_id
+			FROM
+				books
+			WHERE
+				user_id = ?
+			AND
+				book_id = ?`,
 			[user_id, book_id]
 		);
 	}
@@ -101,7 +120,7 @@ const createPaymentIntent = asyncHandler(async (req, res) => {
 		facility_amount: facility.hourly_rate,
 		trainer_id: trainer ? trainer.trainer_id : null,
 		trainer_amount: trainer ? trainer.hourly_rate : null,
-		book_id: book_id,
+		book_id: book_id ? book_id : book_facility_id,
 	};
 	let available;
 	if (trainer?.trainer_id) {
@@ -129,11 +148,26 @@ const createPaymentIntent = asyncHandler(async (req, res) => {
 			[book_id]
 		);
 	}
-	console.log(available);
-	if (!available) {
+	if (!available && book_id) {
 		const [{ affectedRows }] = await pool.query(
 			`INSERT INTO payments (total_amount, currency, status, book_id) VALUES (?, ?, ?, ?)`,
 			[Math.round(totalPrice * 100), currency, 'pending', book_id]
+		);
+		if (affectedRows === 0) {
+			res.status(400).json({
+				message: 'Payment creation failed',
+			});
+			return;
+		}
+	} else if (!available && book_facility_id) {
+		const [{ affectedRows }] = await pool.query(
+			`INSERT INTO payments_facility (total_amount, currency, status, book_id) VALUES (?, ?, ?, ?)`,
+			[
+				Math.round(totalPrice * 100),
+				currency,
+				'pending',
+				book_facility_id,
+			]
 		);
 		if (affectedRows === 0) {
 			res.status(400).json({
@@ -185,11 +219,11 @@ const handlePaymentWebhook = asyncHandler(async (req, res) => {
 		case 'payment_intent.succeeded':
 			const successPaymentIntent = event.data.object;
 			await handleSuccessfulPayment(successPaymentIntent);
-			break;
+			return;
 		case 'payment_intent.canceled':
 			const canceledPaymentIntent = event.data.object;
 			await handleCanceledPayment(canceledPaymentIntent);
-			break;
+			return;
 		default:
 			console.log(`Unhandled event type ${event.type}`);
 	}
@@ -285,12 +319,14 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 		if (description?.trainer_id) {
 			[{ affectedRows }] = await connection.query(
 				`UPDATE payments
-					SET status = 'success'
+				SET
+					status = 'success',
+					transaction_id = ?
 				WHERE
 					book_id = ?
 				AND
 					status = 'pending'`,
-				[description.book_id]
+				[description.book_id, paymentIntent.id]
 			);
 			if (affectedRows === 0) {
 				res.status(400).json({
@@ -303,12 +339,14 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 		} else {
 			[{ affectedRows }] = await connection.query(
 				`UPDATE payments_facility
-					SET status = 'success'
+				SET
+					status = 'success',
+					transaction_id = ?
 				WHERE
 					book_id = ?
 				AND
 					status = 'pending'`,
-				[description.book_id]
+				[description.book_id, paymentIntent.id]
 			);
 			if (affectedRows === 0) {
 				res.status(400).json({
