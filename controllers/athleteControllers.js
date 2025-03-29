@@ -240,11 +240,13 @@ const athleteFilterTrainer = expressAsyncHandler(async (req, res) => {
 			u.latitude,
 			u.longitude,
 			COALESCE(r.avg_rating, 0) AS avg_rating,
-			r.no_of_ratings AS no_of_ratings
+			COALESCE(r.no_of_ratings, 0) AS no_of_ratings
 		FROM
 			users u
 		INNER JOIN
 			trainers t ON u.user_id = t.user_id
+		LEFT JOIN
+			trainer_availability_hours tah ON t.trainer_id = tah.trainer_id
 		LEFT JOIN
 			(
 				SELECT
@@ -255,11 +257,7 @@ const athleteFilterTrainer = expressAsyncHandler(async (req, res) => {
 					review_trainer rt
 				GROUP BY
 					rt.trainer_id
-				HAVING
-					COUNT(DISTINCT rt.review_trainer_id) > 0
 			) r ON t.trainer_id = r.trainer_id
-		LEFT JOIN
-			trainer_availability_hours tah ON t.trainer_id = tah.trainer_id
 		WHERE 
 			ST_Distance_Sphere(
 				POINT(u.longitude, u.latitude),
@@ -296,6 +294,7 @@ const athleteFilterTrainer = expressAsyncHandler(async (req, res) => {
 			offset,
 		]
 	);
+	console.log(filteredTrainer);
 	if (filteredTrainer.length === 0) {
 		res.status(404).json({
 			message: 'There are no trainers by this filter',
