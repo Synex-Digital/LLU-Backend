@@ -126,13 +126,13 @@ const createPaymentIntent = asyncHandler(async (req, res) => {
 				book_id = ?
 			AND
 				status = 'pending'`,
-			[book_id, facility.facility_id]
+			[book_id]
 		);
 	}
 	if (!available) {
 		const [{ affectedRows }] = await pool.query(
 			`INSERT INTO payments (total_amount, currency, status, book_id) VALUES (?, ?, ?, ?)`,
-			[totalPrice, currency, 'pending', book_id]
+			[Math.round(totalPrice * 100), currency, 'pending', book_id]
 		);
 		if (affectedRows === 0) {
 			res.status(400).json({
@@ -142,7 +142,7 @@ const createPaymentIntent = asyncHandler(async (req, res) => {
 		}
 	}
 	const paymentIntent = await stripe.paymentIntents.create({
-		amount: totalPrice * 100,
+		amount: Math.round(totalPrice * 100),
 		currency: currency,
 		customer: customerId,
 		description: JSON.stringify(description),
@@ -278,6 +278,7 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 	const connection = await pool.getConnection();
 	try {
 		await connection.beginTransaction();
+		console.log(paymentIntent);
 		const description = JSON.parse(paymentIntent.description);
 		let affectedRows;
 		if (description?.trainer_id) {
@@ -304,6 +305,7 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 					SET status = 'success'
 				WHERE
 					book_id = ?
+				AND
 					status = 'pending'`,
 				[description.book_id]
 			);
