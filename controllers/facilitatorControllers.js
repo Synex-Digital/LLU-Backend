@@ -199,6 +199,16 @@ const facilityReview = expressAsyncHandler(async (req, res) => {
 		});
 		return;
 	}
+	const [[availableFacility]] = await pool.query(
+		`SELECT * FROM facilities WHERE facility_id = ?`,
+		[facility_id]
+	);
+	if (!availableFacility) {
+		res.status(404).json({
+			message: 'There is no facility by this facility_id',
+		});
+		return;
+	}
 	const { rating, content } = req.body;
 	const [[available]] = await pool.query(
 		`SELECT * FROM review_facility WHERE user_id = ? AND facility_id = ?`,

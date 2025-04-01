@@ -227,10 +227,9 @@ const athleteFilterTrainer = expressAsyncHandler(async (req, res) => {
 			FROM
 				trainers`
 		);
-		ending_hourly_rate = highest_hourly_rate;
+		ending_hourly_rate = highest_hourly_rate + 1;
 	}
 	const offset = (page - 1) * limit;
-
 	const [filteredTrainer] = await pool.query(
 		`SELECT
 			t.trainer_id,
@@ -294,7 +293,6 @@ const athleteFilterTrainer = expressAsyncHandler(async (req, res) => {
 			offset,
 		]
 	);
-	console.log(filteredTrainer);
 	if (filteredTrainer.length === 0) {
 		res.status(404).json({
 			message: 'There are no trainers by this filter',

@@ -214,21 +214,30 @@ const handlePaymentWebhook = asyncHandler(async (req, res) => {
 		console.error(`Webhook Error: ${err.message}`);
 		return res.status(400).send(`Webhook Error: ${err.message}`);
 	}
-
+	let statusCode;
 	switch (event.type) {
 		case 'payment_intent.succeeded':
 			const successPaymentIntent = event.data.object;
-			await handleSuccessfulPayment(successPaymentIntent);
-			return;
+			statusCode = await handleSuccessfulPayment(successPaymentIntent);
+			break;
 		case 'payment_intent.canceled':
 			const canceledPaymentIntent = event.data.object;
-			await handleCanceledPayment(canceledPaymentIntent);
-			return;
+			statusCode = await handleCanceledPayment(canceledPaymentIntent);
+			break;
 		default:
 			console.log(`Unhandled event type ${event.type}`);
 	}
-
-	res.status(200).json({ received: true });
+	if (statusCode === 400) {
+		res.status(statusCode).json({
+			received: false,
+		});
+		return;
+	} else if (statusCode === 200) {
+		res.status(statusCode).json({
+			received: true,
+		});
+		return;
+	}
 });
 
 const handleCanceledPayment = async (paymentIntent) => {
@@ -246,11 +255,7 @@ const handleCanceledPayment = async (paymentIntent) => {
 			);
 			if (affectedRows === 0) {
 				await connection.rollback();
-				connection.release();
-				res.status(400).json({
-					message: 'Payment update failed',
-				});
-				return;
+				return 400;
 			}
 			[{ affectedRows }] = await connection.query(
 				`DELETE FROM books
@@ -261,10 +266,7 @@ const handleCanceledPayment = async (paymentIntent) => {
 			if (affectedRows === 0) {
 				await connection.rollback();
 				connection.release();
-				res.status(400).json({
-					message: 'Payment update failed',
-				});
-				return;
+				return 400;
 			}
 		} else {
 			[{ affectedRows }] = await connection.query(
@@ -276,10 +278,7 @@ const handleCanceledPayment = async (paymentIntent) => {
 			if (affectedRows === 0) {
 				await connection.rollback();
 				connection.release();
-				res.status(400).json({
-					message: 'Payment update failed',
-				});
-				return;
+				return 400;
 			}
 			[{ affectedRows }] = await connection.query(
 				`DELETE FROM book_facilities
@@ -290,22 +289,17 @@ const handleCanceledPayment = async (paymentIntent) => {
 			if (affectedRows === 0) {
 				await connection.rollback();
 				connection.release();
-				res.status(400).json({
-					message: 'Payment update failed',
-				});
-				return;
+				return 400;
 			}
 		}
 		await connection.commit();
 		connection.release();
-		res.status(200).json({
-			message: 'Payment canceled successfully',
-		});
+		return 200;
 	} catch (error) {
 		await connection.rollback();
 		connection.release();
 		console.error('Error handling canceled payment:', error);
-		throw error;
+		return 400;
 	}
 };
 
@@ -329,12 +323,9 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 				[description.book_id, paymentIntent.id]
 			);
 			if (affectedRows === 0) {
-				res.status(400).json({
-					message: 'Payment update failed',
-				});
 				await connection.rollback();
 				connection.release();
-				return;
+				return 400;
 			}
 		} else {
 			[{ affectedRows }] = await connection.query(
@@ -349,12 +340,9 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 				[description.book_id, paymentIntent.id]
 			);
 			if (affectedRows === 0) {
-				res.status(400).json({
-					message: 'Payment update failed',
-				});
 				await connection.rollback();
 				connection.release();
-				return;
+				return 400;
 			}
 		}
 		const [[{ first_name, start_time, end_time }]] = await connection.query(
@@ -393,12 +381,9 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 			]
 		);
 		if (affectedRows === 0) {
-			res.status(400).json({
-				message: 'Payment update failed',
-			});
 			await connection.rollback();
 			connection.release();
-			return;
+			return 400;
 		}
 		if (description?.trainer_id) {
 			[{ affectedRows }] = await connection.query(
@@ -406,21 +391,19 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 				[insertId, description.trainer_id]
 			);
 			if (affectedRows === 0) {
-				res.status(400).json({
-					message: 'Payment update failed',
-				});
 				await connection.rollback();
 				connection.release();
-				return;
+				return 400;
 			}
 		}
 		await connection.commit();
 		connection.release();
+		return 200;
 	} catch (error) {
 		await connection.rollback();
 		connection.release();
 		console.error('Error handling successful payment:', error);
-		throw error;
+		return 400;
 	}
 };
 
