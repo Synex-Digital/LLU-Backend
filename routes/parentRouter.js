@@ -12,6 +12,7 @@ import {
 	athleteAddFavoriteFacility,
 	athleteAddFavoriteTrainer,
 	athleteAppointments,
+	athleteCheckSession,
 	athleteFavoriteTrainer,
 	athleteFilterFacilities,
 	athleteFilterTrainer,
@@ -21,6 +22,7 @@ import {
 	athleteRemoveFavoriteFacility,
 	athleteRemoveFavoriteTrainer,
 	athleteSearchFacilityByName,
+	athleteSearchTrainerByName,
 	athleteTopTrainer,
 	athleteUpcomingSessions,
 } from '../controllers/athleteControllers.js';
@@ -35,6 +37,8 @@ import {
 	athleteFacilityEmployees,
 	athleteFacilityImages,
 	athleteFacilityReviews,
+	facilitySessionDetails,
+	facilitySessionTrainer,
 	facilitySuggestions,
 } from '../controllers/facilitatorControllers.js';
 
@@ -59,8 +63,12 @@ parentRouter
 	.post(protect, parentCheck, athleteFilterFacilities);
 
 parentRouter
-	.route('/search')
+	.route('/search_by_facility_name')
 	.post(protect, parentCheck, athleteSearchFacilityByName);
+
+parentRouter
+	.route('/search_by_trainer_name')
+	.post(protect, parentCheck, athleteSearchTrainerByName);
 
 parentRouter
 	.route('/favorites')
@@ -90,6 +98,16 @@ parentRouter
 parentRouter
 	.route('/appointments')
 	.get(protect, parentCheck, athleteAppointments);
+
+parentRouter
+	.route('/session_details')
+	.post(
+		protect,
+		parentCheck,
+		athleteCheckSession,
+		facilitySessionDetails,
+		facilitySessionTrainer
+	);
 
 parentRouter
 	.route('/profile')

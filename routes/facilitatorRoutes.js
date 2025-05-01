@@ -32,10 +32,13 @@ import {
 import { protect } from '../middleware/authMiddleware.js';
 import {
 	deleteFile,
+	uploadFile,
 	uploadMultiple,
 	uploadMultipleToS3,
+	uploadToS3,
 } from '../middleware/uploadMiddleware.js';
 import { athleteFeaturedTrainer } from '../controllers/athleteControllers.js';
+import { userAddFacilityReviewImg } from '../controllers/usersControllers.js';
 
 const facilitatorRouter = Router();
 
@@ -137,6 +140,16 @@ facilitatorRouter
 facilitatorRouter
 	.route('/add_review')
 	.post(protect, facilityReviewerCheck, facilityReview);
+
+facilitatorRouter
+	.route('/review_facility_add_img')
+	.post(
+		protect,
+		facilityReviewerCheck,
+		uploadFile,
+		uploadToS3,
+		userAddFacilityReviewImg
+	);
 
 facilitatorRouter
 	.route('/delete_img')

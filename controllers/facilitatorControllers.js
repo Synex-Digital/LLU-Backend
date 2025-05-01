@@ -1192,6 +1192,7 @@ const facilitatorDeleteFacilityImage = expressAsyncHandler(
 );
 
 const athleteFacilityDetails = expressAsyncHandler(async (req, res, next) => {
+	const { user_id } = req.user;
 	const { facility_id } = req.body;
 	if (!facility_id || typeof facility_id !== 'number') {
 		res.status(400).json({
@@ -1212,6 +1213,10 @@ const athleteFacilityDetails = expressAsyncHandler(async (req, res, next) => {
 			u.profile_picture,
 			u.img,
 			u.phone,
+			CASE 
+				WHEN ff.facility_id IS NOT NULL THEN 1
+				ELSE 0
+			END AS is_favorite,
 			COUNT(r.review_facility_id) AS no_of_reviews,
 			COALESCE(AVG(r.rating), 0) AS avg_rating,
 			GROUP_CONCAT(DISTINCT a.name SEPARATOR ',') AS amenities
@@ -1225,6 +1230,8 @@ const athleteFacilityDetails = expressAsyncHandler(async (req, res, next) => {
 			review_facility r ON f.facility_id = r.facility_id
 		LEFT JOIN
 			amenities a ON f.facility_id = a.facility_id
+		LEFT JOIN
+			favorite_facility ff ON f.facility_id = ff.facility_id AND ff.user_id = ?
 		WHERE
 			f.facility_id = ?
 		GROUP BY
@@ -1239,7 +1246,7 @@ const athleteFacilityDetails = expressAsyncHandler(async (req, res, next) => {
 			u.profile_picture,
 			u.img,
 			u.phone`,
-		[facility_id]
+		[user_id, facility_id]
 	);
 	if (!facilityInfo) {
 		res.status(400).json({

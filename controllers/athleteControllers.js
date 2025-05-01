@@ -198,6 +198,7 @@ const athleteHome = expressAsyncHandler(async (req, res) => {
 
 const athleteFilterTrainer = expressAsyncHandler(async (req, res) => {
 	let { page, limit } = req.query;
+	const { user_id } = req.user;
 	page = parseInt(page) || 1;
 	limit = parseInt(limit) || 10;
 	let {
@@ -233,17 +234,27 @@ const athleteFilterTrainer = expressAsyncHandler(async (req, res) => {
 	const [filteredTrainer] = await pool.query(
 		`SELECT
 			t.trainer_id,
+			u.profile_picture,
 			u.img,
 			u.first_name,
 			u.last_name,
-			u.latitude,
-			u.longitude,
-			COALESCE(r.avg_rating, 0) AS avg_rating,
-			COALESCE(r.no_of_ratings, 0) AS no_of_ratings
+			t.specialization,
+			t.specialization_level,
+			t.hourly_rate,
+			COALESCE(AVG(r.rating), 0) AS avg_rating,
+			CASE 
+				WHEN ft.trainer_id IS NOT NULL THEN 1
+				ELSE 0
+			END AS is_favorite
 		FROM
 			users u
 		INNER JOIN
 			trainers t ON u.user_id = t.user_id
+		LEFT JOIN
+			review_trainer r ON t.trainer_id = r.trainer_id
+		LEFT JOIN
+			favorite_trainer ft ON t.trainer_id = ft.trainer_id
+								AND ft.user_id = ?
 		LEFT JOIN
 			trainer_availability_hours tah ON t.trainer_id = tah.trainer_id
 		LEFT JOIN
@@ -256,7 +267,7 @@ const athleteFilterTrainer = expressAsyncHandler(async (req, res) => {
 					review_trainer rt
 				GROUP BY
 					rt.trainer_id
-			) r ON t.trainer_id = r.trainer_id
+			) rf ON t.trainer_id = rf.trainer_id
 		WHERE 
 			ST_Distance_Sphere(
 				POINT(u.longitude, u.latitude),
@@ -267,7 +278,7 @@ const athleteFilterTrainer = expressAsyncHandler(async (req, res) => {
 		AND
 			t.hourly_rate BETWEEN ? AND ?
 		AND
-			r.avg_rating BETWEEN ? AND ?
+			rf.avg_rating BETWEEN ? AND ?
 		AND
 			t.gender = ?
 		AND
@@ -280,6 +291,7 @@ const athleteFilterTrainer = expressAsyncHandler(async (req, res) => {
 			avg_rating DESC
 		LIMIT ? OFFSET ?;`,
 		[
+			user_id,
 			longitude,
 			latitude,
 			specialization,
@@ -322,13 +334,13 @@ const athleteFilterFacilities = expressAsyncHandler(async (req, res) => {
 		SELECT
 			f.facility_id,
 			f.name,
+			f.hourly_rate,
 			f.latitude,
 			f.longitude,
-			COUNT(DISTINCT rf.review_facility_id) as no_of_reviews,
 			COALESCE(AVG(rf.rating), 0) as avg_rating,
 			GROUP_CONCAT(DISTINCT a.name SEPARATOR ',') AS amenities,
 			GROUP_CONCAT(DISTINCT fah.week_day SEPARATOR ',') AS week_days,
-			GROUP_CONCAT(DISTINCT fi.img SEPARATOR ',') AS images
+			fi.img
 		FROM
 			facilities f
 		LEFT JOIN
@@ -359,39 +371,60 @@ const athleteFilterFacilities = expressAsyncHandler(async (req, res) => {
 		})
 		.map(({ amenities, week_days, ...facility }) => ({
 			...facility,
-			images: facility.images ? facility.images.split(',') : [],
 		}));
 	res.status(200).json(filteredFacilities);
 });
 
 const athleteSearchFacilityByName = expressAsyncHandler(async (req, res) => {
-	const { name } = req.body;
+	const { name, latitude, longitude } = req.body;
+	if (!name || typeof name !== 'string') {
+		res.status(400).json({
+			message: 'name is missing or of wrong datatype',
+		});
+		return;
+	}
+	if (!latitude || typeof latitude !== 'number') {
+		res.status(400).json({
+			message: 'latitude is missing or of wrong datatype',
+		});
+		return;
+	}
+	if (!longitude || typeof longitude !== 'number') {
+		res.status(400).json({
+			message: 'longitude is missing or of wrong datatype',
+		});
+		return;
+	}
 	const [facilities] = await pool.query(
 		`SELECT
 			f.facility_id,
+			f.hourly_rate,
 			f.name,
 			f.latitude,
 			f.longitude,
-			COUNT(DISTINCT rf.review_facility_id) as no_of_reviews,
-			COALESCE(AVG(rf.rating), 0) as avg_rating,
-			GROUP_CONCAT(DISTINCT a.name SEPARATOR ',') AS amenities,
-			GROUP_CONCAT(DISTINCT fah.week_day SEPARATOR ',') AS week_days,
-			GROUP_CONCAT(DISTINCT fi.img SEPARATOR ',') AS images
+			fi.img,
+			COALESCE(AVG(rf.rating), 0) as avg_rating
 		FROM
 			facilities f
 		LEFT JOIN
 			review_facility rf ON f.facility_id = rf.facility_id
 		LEFT JOIN
 			facility_img fi ON f.facility_id = fi.facility_id
-		LEFT JOIN
-			amenities a ON f.facility_id = a.facility_id
-		LEFT JOIN
-			facility_availability_hours fah ON f.facility_id = fah.facility_id
 		WHERE
 			f.name LIKE ?
+		AND
+			ST_Distance_Sphere(
+				POINT(f.longitude, f.latitude),
+				POINT(?, ?)
+			) <= 16093.4
 		GROUP BY
-			f.facility_id, f.name, f.latitude, f.longitude`,
-		[`%${name}%`]
+			f.facility_id,
+			f.hourly_rate,
+			f.name, 
+			f.latitude, 
+			f.longitude,
+			fi.img;`,
+		[`%${name}%`, longitude, latitude]
 	);
 	res.status(200).json({
 		data: {
@@ -400,6 +433,60 @@ const athleteSearchFacilityByName = expressAsyncHandler(async (req, res) => {
 	});
 });
 
+const athleteSearchTrainerByName = expressAsyncHandler(async (req, res) => {
+	const { name, latitude, longitude } = req.body;
+	if (!name || typeof name !== 'string') {
+		res.status(400).json({
+			message: 'name is missing or of wrong datatype',
+		});
+		return;
+	}
+	if (!latitude || typeof latitude !== 'number') {
+		res.status(400).json({
+			message: 'latitude is missing or of wrong datatype',
+		});
+		return;
+	}
+	if (!longitude || typeof longitude !== 'number') {
+		res.status(400).json({
+			message: 'longitude is missing or of wrong datatype',
+		});
+		return;
+	}
+	const [trainers] = await pool.query(
+		`SELECT
+			t.trainer_id,
+			u.profile_picture,
+			u.img,
+			u.first_name,
+			u.last_name,
+			t.specialization,
+			t.specialization_level,
+			t.hourly_rate,
+			COALESCE(AVG(r.rating), 0) AS avg_rating
+		FROM
+			users u
+		INNER JOIN
+			trainers t ON u.user_id = t.user_id
+		LEFT JOIN
+			review_trainer r ON t.trainer_id = r.trainer_id
+		WHERE 
+			u.first_name LIKE ? OR u.last_name LIKE ?
+		AND
+			ST_Distance_Sphere(
+				POINT(u.longitude, u.latitude),
+				POINT(?, ?)
+			) <= 16093.4
+		GROUP BY
+			t.trainer_id;`,
+		[`%${name}%`, `%${name}%`, longitude, latitude]
+	);
+	res.status(200).json({
+		data: {
+			trainers,
+		},
+	});
+});
 const athleteEditProfile = expressAsyncHandler(async (req, res) => {
 	const { user_id } = req.user;
 	const { latitude, longitude, short_description, first_name, last_name } =
@@ -603,7 +690,7 @@ const athleteUpcomingSessions = expressAsyncHandler(async (req, res) => {
 	res.status(200).json({
 		data: {
 			profile: req.profile,
-			children: req?.children?.length ? null : req.children,
+			...(req?.children?.length ? { children: req.children } : {}),
 			upcomingSessions: req.upcomingSessions,
 		},
 	});
@@ -613,6 +700,7 @@ const athleteAppointments = expressAsyncHandler(async (req, res) => {
 	const { user_id } = req.user;
 	const [appointments] = await pool.query(
 		`SELECT
+			fs.facility_sessions_id,
 			f.name,
 			f.latitude,
 			f.longitude,
@@ -772,6 +860,28 @@ const athleteRemoveFavoriteFacility = expressAsyncHandler(async (req, res) => {
 	});
 });
 
+const athleteCheckSession = expressAsyncHandler(async (req, res, next) => {
+	const { user_id } = req.user;
+	const { session_id } = req.body;
+	if (!session_id || typeof session_id !== 'number') {
+		res.status(400).json({
+			message: 'Session id is missing or of wrong datatype',
+		});
+		return;
+	}
+	const [[sessionAvailable]] = await pool.query(
+		`SELECT * FROM facility_sessions WHERE facility_sessions_id = ? AND user_id = ?`,
+		[session_id, user_id]
+	);
+	if (!sessionAvailable) {
+		res.status(400).json({
+			message: 'There is no session for this user by this session id',
+		});
+		return;
+	}
+	next();
+});
+
 export {
 	athleteHome,
 	athleteCheck,
@@ -791,4 +901,6 @@ export {
 	athleteGetFavoriteFacility,
 	athleteRemoveFavoriteFacility,
 	athleteSearchFacilityByName,
+	athleteCheckSession,
+	athleteSearchTrainerByName,
 };

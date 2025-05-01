@@ -93,7 +93,7 @@ const parentChildrenInfo = expressAsyncHandler(async (req, res, next) => {
             sport_interest,
             sport_level
         FROM
-            children
+        	children
         WHERE
             parent_id = ?`,
 		[parent_id]

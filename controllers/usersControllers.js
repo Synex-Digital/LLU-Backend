@@ -112,6 +112,35 @@ const userAddReviewImg = expressAsyncHandler(async (req, res) => {
 	});
 });
 
+const userAddFacilityReviewImg = expressAsyncHandler(async (req, res) => {
+	if (!req.file) {
+		res.status(400).json({
+			message: 'No file uploaded. Please attach a file.',
+		});
+		return;
+	}
+	const { review_id } = req.body;
+	if (
+		!review_id ||
+		isNaN(review_id) ||
+		!Number.isInteger(Number(review_id))
+	) {
+		res.status(400).json({
+			message: 'review id is missing or of wrong datatype',
+		});
+		return;
+	}
+	const [{ affectedRows }] = await pool.query(
+		`INSERT INTO review_trainer_img (review_trainer_id, img) VALUES (?, ?)`,
+		[review_id, req.filePath]
+	);
+	if (affectedRows === 0)
+		throw new Error('Failed to upload image into review');
+	res.status(200).json({
+		message: 'Successfully uploaded review image',
+	});
+});
+
 const userAddPost = expressAsyncHandler(async (req, res, next) => {
 	const { content } = req.body;
 	const { user_id } = req.user;
@@ -688,9 +717,9 @@ const userNormalChats = expressAsyncHandler(async (req, res) => {
 const userHandleNotificationStatus = expressAsyncHandler(async (req, res) => {
 	const { status, chat_id } = req.body;
 	const { user_id } = req.user;
-	if (!status || !chat_id) {
+	if (!status || !chat_id || typeof chat_id !== 'number') {
 		res.status(400).json({
-			message: 'Missing attributes',
+			message: 'status or chat_id is missing or of wrong datatype',
 		});
 		return;
 	}
@@ -705,7 +734,6 @@ const userHandleNotificationStatus = expressAsyncHandler(async (req, res) => {
 		`SELECT * FROM chats WHERE chat_id = ? AND user_id = ?`,
 		[chat_id, user_id]
 	);
-	console.log(availableChat);
 	if (!availableChat) {
 		res.status(403).json({
 			message:
@@ -791,7 +819,11 @@ const userGetMessagesInChat = expressAsyncHandler(async (req, res) => {
 			m.time,
 			u.user_id,
 			u.first_name,
-			u.last_name
+			u.last_name,
+			CASE 
+				WHEN m.content LIKE 'https://linkandlevelup-bucket.s3.us-east-2.amazonaws.com/%' THEN 1
+				ELSE 0
+			END AS is_img
 		FROM
 			messages m
 		RIGHT JOIN
@@ -810,6 +842,86 @@ const userGetMessagesInChat = expressAsyncHandler(async (req, res) => {
 		start_time,
 		end_time,
 		data: messages,
+	});
+});
+
+const userDeleteMessage = expressAsyncHandler(async (req, res) => {
+	const { message_id, chat_id } = req.body;
+	const { user_id } = req.user;
+	if (
+		!message_id ||
+		typeof message_id !== 'number' ||
+		!chat_id ||
+		typeof chat_id !== 'number'
+	) {
+		res.status(400).json({
+			message: 'message_id or chat is missing or of wrong datatype',
+		});
+		return;
+	}
+	console.log({
+		message_id,
+		chat_id,
+	});
+	const [[ownMessage]] = await pool.query(
+		`SELECT * FROM chats WHERE chat_id = ? AND user_id = ?`,
+		[chat_id, user_id]
+	);
+	if (!ownMessage) {
+		res.status(403).json({
+			message: 'You do not have permission to delete this message',
+		});
+		return;
+	}
+	const [{ affectedRows }] = await pool.query(
+		`DELETE FROM messages WHERE message_id = ? AND chat_id = ?`,
+		[message_id, chat_id]
+	);
+	console.log(affectedRows);
+	if (affectedRows === 0) {
+		res.status(403).json({
+			message:
+				'You do not have permission to delete this message or message does not exist',
+		});
+		return;
+	}
+	res.status(200).json({
+		message: 'Successfully deleted message',
+	});
+});
+
+const userDeleteChat = expressAsyncHandler(async (req, res) => {
+	const { chat_id } = req.body;
+	const { user_id } = req.user;
+	if (!chat_id || typeof chat_id !== 'number') {
+		res.status(400).json({
+			message: 'chat_id is missing or of wrong datatype',
+		});
+		return;
+	}
+	const [[{ room_id }]] = await pool.query(
+		`SELECT room_id FROM chats WHERE chat_id = ? AND user_id = ?`,
+		[chat_id, user_id]
+	);
+	console.log(room_id);
+	if (!room_id) {
+		res.status(403).json({
+			message: 'You do not have permission to delete this chat',
+		});
+		return;
+	}
+	const [{ affectedRows }] = await pool.query(
+		`DELETE FROM chats WHERE room_id = ?`,
+		[room_id]
+	);
+	if (affectedRows === 0) {
+		res.status(400).json({
+			message: 'Failed to delete chat',
+		});
+		return;
+	}
+	res.status(200).json({
+		message: 'Successfully deleted chat',
 	});
 });
 
@@ -1524,4 +1636,7 @@ export {
 	ensureBookPersonalities,
 	userGetReviewSummary,
 	userRemoveBooking,
+	userAddFacilityReviewImg,
+	userDeleteMessage,
+	userDeleteChat,
 };

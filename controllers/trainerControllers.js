@@ -4,6 +4,7 @@ import { validateTimeStamp } from '../utilities/DateValidation.js';
 
 //TODO divide the sections of trainer details
 const trainerProfile = expressAsyncHandler(async (req, res, next) => {
+	const { user_id } = req.user;
 	const { trainer_id } = req.body;
 	if (!trainer_id || typeof trainer_id !== 'number') {
 		res.status(400).json({
@@ -22,15 +23,21 @@ const trainerProfile = expressAsyncHandler(async (req, res, next) => {
 			u.latitude,
 			u.longitude,
 			u.short_description,
-			t.hourly_rate
+			t.hourly_rate,
+			CASE 
+				WHEN ft.trainer_id IS NOT NULL THEN 1
+				ELSE 0
+			END AS is_favorite
 		FROM
 			users u
 		INNER JOIN
 			trainers t ON u.user_id = t.user_id
+		LEFT JOIN
+			favorite_trainer ft ON t.trainer_id = ft.trainer_id AND ft.user_id = ?
 		WHERE
 			t.trainer_id = ?
 		`,
-		[trainer_id]
+		[user_id, trainer_id]
 	);
 	if (!trainer) {
 		res.status(404).json({
@@ -219,7 +226,7 @@ const trainerReviews = expressAsyncHandler(async (req, res) => {
 			suggested_facility: req.suggestedFacility,
 			experiences: req.experiences,
 			certificates: req.certificates,
-			educations: req.certificates,
+			educations: req.educations,
 			reviews: filteredReviews,
 		},
 	});

@@ -5,6 +5,7 @@ import {
 	athleteAddFavoriteTrainer,
 	athleteAppointments,
 	athleteCheck,
+	athleteCheckSession,
 	athleteEditProfile,
 	athleteFavoriteTrainer,
 	athleteFeaturedTrainer,
@@ -17,6 +18,7 @@ import {
 	athleteRemoveFavoriteFacility,
 	athleteRemoveFavoriteTrainer,
 	athleteSearchFacilityByName,
+	athleteSearchTrainerByName,
 	athleteTopTrainer,
 	athleteUpcomingSessions,
 } from '../controllers/athleteControllers.js';
@@ -28,7 +30,6 @@ import {
 } from '../controllers/trainerControllers.js';
 import {
 	userAddReview,
-	userAddReviewFacility,
 	userAddReviewImg,
 } from '../controllers/usersControllers.js';
 import { uploadFile, uploadToS3 } from '../middleware/uploadMiddleware.js';
@@ -37,6 +38,8 @@ import {
 	athleteFacilityEmployees,
 	athleteFacilityImages,
 	athleteFacilityReviews,
+	facilitySessionDetails,
+	facilitySessionTrainer,
 	facilitySuggestions,
 } from '../controllers/facilitatorControllers.js';
 
@@ -62,8 +65,14 @@ athleteRouter
 	.post(protect, athleteCheck, athleteFilterFacilities);
 
 athleteRouter
-	.route('/search')
+	.route('/search_by_facility_name')
 	.post(protect, athleteCheck, athleteSearchFacilityByName);
+
+athleteRouter
+	.route('/search_by_trainer_name')
+	.post(protect, athleteCheck, athleteSearchTrainerByName);
+
+athleteRouter.route('');
 
 athleteRouter
 	.route('/favorites')
@@ -129,5 +138,15 @@ athleteRouter
 athleteRouter
 	.route('/appointments')
 	.get(protect, athleteCheck, athleteAppointments);
+
+athleteRouter
+	.route('/session_details')
+	.post(
+		protect,
+		athleteCheck,
+		athleteCheckSession,
+		facilitySessionDetails,
+		facilitySessionTrainer
+	);
 
 export { athleteRouter };

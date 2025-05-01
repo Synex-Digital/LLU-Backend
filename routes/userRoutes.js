@@ -29,6 +29,8 @@ import {
 	ensureBookPersonalities,
 	userGetReviewSummary,
 	userRemoveBooking,
+	userDeleteMessage,
+	userDeleteChat,
 } from '../controllers/usersControllers.js';
 import {
 	uploadMultiple,
@@ -69,7 +71,11 @@ userRouter
 
 userRouter.route('/messages').post(protect, userGetMessagesInChat);
 
+userRouter.route('/delete_message').delete(protect, userDeleteMessage);
+
 userRouter.route('/delete_account').get(protect, userDeleteAccount);
+
+userRouter.route('/delete_chat').delete(protect, userDeleteChat);
 
 userRouter.route('/like').post(protect, userLikePost);
 
