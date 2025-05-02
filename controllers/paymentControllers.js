@@ -234,14 +234,15 @@ const handlePaymentWebhook = asyncHandler(async (req, res) => {
 		res.status(statusCode).json({
 			received: false,
 		});
+		console.log('End of webhook event handling');
 		return;
 	} else if (statusCode === 200) {
 		res.status(statusCode).json({
 			received: true,
 		});
+		console.log('End of webhook event handling');
 		return;
 	}
-	console.log('End of webhook event handling');
 });
 
 const handleCanceledPayment = async (paymentIntent) => {
