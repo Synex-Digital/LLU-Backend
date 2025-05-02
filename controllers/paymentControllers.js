@@ -327,6 +327,7 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 					status = 'pending'`,
 				[description.book_id, paymentIntent.id]
 			);
+			console.log('Update payments affected rows:', affectedRows);
 			if (affectedRows === 0) {
 				await connection.rollback();
 				connection.release();
@@ -343,6 +344,10 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 				AND
 					status = 'pending'`,
 				[description.book_id, paymentIntent.id]
+			);
+			console.log(
+				'Update payments_facility affected rows:',
+				affectedRows
 			);
 			if (affectedRows === 0) {
 				await connection.rollback();
@@ -363,6 +368,11 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 				b.book_id = ?`,
 			[description.book_id]
 		);
+		console.log('Book Info:', {
+			first_name,
+			start_time,
+			end_time,
+		});
 		const [[{ name }]] = await connection.query(
 			`SELECT
 				name
@@ -372,6 +382,9 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 				facility_id = ?`,
 			[description.facility_id]
 		);
+		console.log('Facility Info:', {
+			name,
+		});
 		let insertId;
 		[{ affectedRows, insertId }] = await connection.query(
 			`INSERT INTO facility_sessions (user_id, facility_id, trainer_id, name, status, start_time, end_time) VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -385,6 +398,7 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 				end_time,
 			]
 		);
+		console.log('Insert facility_sessions affected rows:', affectedRows);
 		if (affectedRows === 0) {
 			await connection.rollback();
 			connection.release();
@@ -395,6 +409,8 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 				`INSERT INTO trainer_sessions (facility_sessions_id, trainer_id) VALUES (?, ?)`,
 				[insertId, description.trainer_id]
 			);
+			console.log('Insert trainer_sessions affected rows:', affectedRows);
+
 			if (affectedRows === 0) {
 				await connection.rollback();
 				connection.release();
