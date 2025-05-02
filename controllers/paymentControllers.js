@@ -315,6 +315,7 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 		console.log(paymentIntent);
 		const description = JSON.parse(paymentIntent.description);
 		let affectedRows;
+		console.log('Description:', description);
 		if (description?.trainer_id) {
 			[{ affectedRows }] = await connection.query(
 				`UPDATE payments
