@@ -214,13 +214,16 @@ const handlePaymentWebhook = asyncHandler(async (req, res) => {
 		console.error(`Webhook Error: ${err.message}`);
 		return res.status(400).send(`Webhook Error: ${err.message}`);
 	}
+	console.log(event);
 	let statusCode;
 	switch (event.type) {
 		case 'payment_intent.succeeded':
+			console.log('PaymentIntent was successful!');
 			const successPaymentIntent = event.data.object;
 			statusCode = await handleSuccessfulPayment(successPaymentIntent);
 			break;
 		case 'payment_intent.canceled':
+			console.log('PaymentIntent was canceled!');
 			const canceledPaymentIntent = event.data.object;
 			statusCode = await handleCanceledPayment(canceledPaymentIntent);
 			break;
@@ -238,6 +241,7 @@ const handlePaymentWebhook = asyncHandler(async (req, res) => {
 		});
 		return;
 	}
+	console.log('End of webhook event handling');
 });
 
 const handleCanceledPayment = async (paymentIntent) => {
