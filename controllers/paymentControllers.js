@@ -388,7 +388,7 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 		});
 		let insertId;
 		[{ affectedRows, insertId }] = await connection.query(
-			`INSERT INTO facility_sessions (user_id, facility_id, name, status, start_time, end_time) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			`INSERT INTO facility_sessions (user_id, facility_id, name, status, start_time, end_time) VALUES (?, ?, ?, ?, ?, ?)`,
 			[
 				description.user_id,
 				description.facility_id,
