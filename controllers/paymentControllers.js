@@ -326,7 +326,7 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 					book_id = ?
 				AND
 					status = 'pending'`,
-				[description.book_id, paymentIntent.id]
+				[paymentIntent.id, description.book_id]
 			);
 			console.log('Update payments affected rows:', affectedRows);
 			if (affectedRows === 0) {
@@ -344,7 +344,7 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 					book_id = ?
 				AND
 					status = 'pending'`,
-				[description.book_id, paymentIntent.id]
+				[paymentIntent.id, description.book_id]
 			);
 			console.log(
 				'Update payments_facility affected rows:',
