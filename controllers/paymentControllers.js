@@ -356,9 +356,10 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 				return 400;
 			}
 		}
-		const [[{ first_name, start_time, end_time }]] = await connection.query(
+		let [[{ first_name, start_time, end_time }]] = await connection.query(
 			`SELECT
 				u.first_name,
+				b.time,
 				b.start_time,
 				b.end_time
 			FROM
@@ -369,6 +370,8 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 				b.book_id = ?`,
 			[description.book_id]
 		);
+		start_time = time + ' ' + start_time;
+		end_time = time + ' ' + end_time;
 		console.log('Book Info:', {
 			first_name,
 			start_time,
