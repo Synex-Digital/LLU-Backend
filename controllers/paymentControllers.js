@@ -356,8 +356,9 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 				return 400;
 			}
 		}
-		let [[{ first_name, start_time, end_time }]] = await connection.query(
-			`SELECT
+		let [[{ first_name, time, start_time, end_time }]] =
+			await connection.query(
+				`SELECT
 				u.first_name,
 				b.time,
 				b.start_time,
@@ -368,8 +369,8 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 				users u ON b.user_id = u.user_id
 			WHERE
 				b.book_id = ?`,
-			[description.book_id]
-		);
+				[description.book_id]
+			);
 		start_time = time + ' ' + start_time;
 		end_time = time + ' ' + end_time;
 		console.log('Book Info:', {
