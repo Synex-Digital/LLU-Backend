@@ -371,9 +371,11 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 				b.book_id = ?`,
 				[description.book_id]
 			);
+		time = time.toISOString().split('T')[0];
 		start_time = time + ' ' + start_time;
 		end_time = time + ' ' + end_time;
 		console.log('Book Info:', {
+			time,
 			first_name,
 			start_time,
 			end_time,
