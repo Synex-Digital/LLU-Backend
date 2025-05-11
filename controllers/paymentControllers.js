@@ -436,7 +436,7 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 
 		const [{ affectedRows: notificationAffectedRows }] =
 			await connection.query(
-				`INSERT INTO notifications (user_id, title, message, time, read_status, redirect) VALUES (?, ?, ?, ?, ?, ?)`,
+				`INSERT INTO notifications (user_id, title, content, time, read_status, redirect) VALUES (?, ?, ?, ?, ?, ?)`,
 				[
 					description.user_id,
 					notification.title,
