@@ -31,6 +31,7 @@ import {
 	userRemoveBooking,
 	userDeleteMessage,
 	userDeleteChat,
+	userGenerateReceipt,
 } from '../controllers/usersControllers.js';
 import {
 	uploadMultiple,
@@ -56,10 +57,10 @@ userRouter
 userRouter.route('/posts').get(protect, userCommunity, userRecommendedPost);
 
 userRouter
-	.route('/individual_post')
-	.post(protect, userGetComments, userIndividualPost);
+	.route('/post/:post_id')
+	.get(protect, userGetComments, userIndividualPost);
 
-userRouter.route('/profile').post(protect, userProfile, userOwnPosts);
+userRouter.route('/profile/:user_id').get(protect, userProfile, userOwnPosts);
 
 userRouter.route('/create_chat').post(protect, userCreateChat);
 
@@ -69,7 +70,7 @@ userRouter
 	.route('/chat_notification')
 	.post(protect, userHandleNotificationStatus);
 
-userRouter.route('/messages').post(protect, userGetMessagesInChat);
+userRouter.route('/messages/:room_id').get(protect, userGetMessagesInChat);
 
 userRouter.route('/delete_message').delete(protect, userDeleteMessage);
 
@@ -110,5 +111,9 @@ userRouter
 userRouter
 	.route('/payment')
 	.post(protect, ensureBookPersonalities, createPaymentIntent);
+
+userRouter
+	.route('/generate_receipt')
+	.get(protect, ensureBookPersonalities, userGenerateReceipt);
 
 export { userRouter };

@@ -100,8 +100,8 @@ parentRouter
 	.get(protect, parentCheck, athleteAppointments);
 
 parentRouter
-	.route('/session_details')
-	.post(
+	.route('/session/:session_id')
+	.get(
 		protect,
 		parentCheck,
 		athleteCheckSession,

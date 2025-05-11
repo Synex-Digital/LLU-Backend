@@ -862,10 +862,17 @@ const athleteRemoveFavoriteFacility = expressAsyncHandler(async (req, res) => {
 
 const athleteCheckSession = expressAsyncHandler(async (req, res, next) => {
 	const { user_id } = req.user;
-	const { session_id } = req.body;
-	if (!session_id || typeof session_id !== 'number') {
+	let { session_id } = req.params;
+	if (!session_id) {
 		res.status(400).json({
-			message: 'Session id is missing or of wrong datatype',
+			message: 'Session id is missing',
+		});
+		return;
+	}
+	session_id = parseInt(session_id);
+	if (isNaN(session_id)) {
+		res.status(400).json({
+			message: 'Session id is of wrong datatype',
 		});
 		return;
 	}

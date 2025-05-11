@@ -442,7 +442,7 @@ const facilitatorCompletedSessions = expressAsyncHandler(
 );
 
 const facilitySessionDetails = expressAsyncHandler(async (req, res, next) => {
-	const { session_id } = req.body;
+	const { session_id } = req.params;
 	//TODO prevent user from accessing if not part of session
 	const [[sessionDetails]] = await pool.query(
 		`SELECT
@@ -480,7 +480,7 @@ const facilitySessionDetails = expressAsyncHandler(async (req, res, next) => {
 });
 
 const facilitySessionTrainer = expressAsyncHandler(async (req, res) => {
-	const { session_id } = req.body;
+	const { session_id } = req.params;
 	const [[sessionTrainer]] = await pool.query(
 		`SELECT
 			u.first_name,

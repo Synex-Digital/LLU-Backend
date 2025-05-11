@@ -2,6 +2,7 @@ import Stripe from 'stripe';
 import asyncHandler from 'express-async-handler';
 import dotenv from 'dotenv';
 import { pool } from '../config/db.js';
+import { io } from '../index.js';
 
 dotenv.config();
 
@@ -356,10 +357,12 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 				return 400;
 			}
 		}
-		let [[{ first_name, time, start_time, end_time }]] =
+		let [[{ first_name, socket_id, type, time, start_time, end_time }]] =
 			await connection.query(
 				`SELECT
 				u.first_name,
+				u.socket_id,
+				u.type,
 				b.time,
 				b.start_time,
 				b.end_time
@@ -423,6 +426,36 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 				return 400;
 			}
 		}
+		const notification = {
+			title: 'Booking Confirmation',
+			message: `Payment successful and session has been booked for ${time} from ${start_time} to ${end_time}`,
+			time: new Date(),
+			read: 'no',
+			redirect: `/api/${type}/session/${insertId}`,
+		};
+
+		const [{ affectedRows: notificationAffectedRows }] =
+			await connection.query(
+				`INSERT INTO notifications (user_id, title, message, time, read, redirect) VALUES (?, ?, ?, ?, ?)`,
+				[
+					description.user_id,
+					notification.title,
+					notification.message,
+					notification.time
+						.toISOString()
+						.slice(0, 19)
+						.replace('T', ' '),
+					notification.read,
+					notification.redirect,
+				]
+			);
+
+		if (notificationAffectedRows === 0) {
+			await connection.rollback();
+			connection.release();
+			return 400;
+		}
+		io.to(socket_id).emit('notification', notification);
 		await connection.commit();
 		connection.release();
 		return 200;

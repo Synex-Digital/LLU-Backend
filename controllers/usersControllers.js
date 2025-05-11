@@ -1,4 +1,5 @@
 import expressAsyncHandler from 'express-async-handler';
+import PDFDocument from 'pdfkit';
 import { pool } from '../config/db.js';
 import { generateRandomString } from '../utilities/generateRandomString.js';
 import { validateDate } from '../utilities/DateValidation.js';
@@ -344,10 +345,17 @@ const userGetComments = expressAsyncHandler(async (req, res, next) => {
 	page = parseInt(page) || 1;
 	limit = parseInt(limit) || 10;
 	const offset = (page - 1) * limit;
-	const { post_id } = req.body;
-	if (!post_id && typeof post_id !== 'number') {
+	let { post_id } = req.params;
+	if (!post_id) {
 		res.status(400).json({
-			message: 'Post id is missing in the url or of wrong datatype',
+			message: 'Post id is missing',
+		});
+		return;
+	}
+	post_id = parseInt(post_id);
+	if (isNaN(post_id)) {
+		res.status(400).json({
+			message: 'Post id is of wrong datatype',
 		});
 		return;
 	}
@@ -370,7 +378,6 @@ const userGetComments = expressAsyncHandler(async (req, res, next) => {
 		LIMIT ? OFFSET ?`,
 		[post_id, limit, offset]
 	);
-	console.log(comments);
 	req.comments = comments;
 	next();
 });
@@ -379,7 +386,7 @@ const userIndividualPost = expressAsyncHandler(async (req, res) => {
 	let { page, limit } = req.query;
 	page = parseInt(page) || 1;
 	limit = parseInt(limit) || 10;
-	const { post_id } = req.body;
+	let { post_id } = req.params;
 	const [[post]] = await pool.query(
 		`SELECT
 			p.post_id,
@@ -436,10 +443,17 @@ const userIndividualPost = expressAsyncHandler(async (req, res) => {
 });
 
 const userProfile = expressAsyncHandler(async (req, res, next) => {
-	const { user_id } = req.body;
-	if (!user_id || typeof user_id !== 'number') {
+	let { user_id } = req.params;
+	if (!user_id) {
 		res.status(400).json({
-			message: 'user_id is missing or of wrong type',
+			message: 'user_id is missing',
+		});
+		return;
+	}
+	user_id = parseInt(user_id);
+	if (isNaN(user_id)) {
+		res.status(400).json({
+			message: 'user_id is of wrong datatype',
 		});
 		return;
 	}
@@ -504,10 +518,11 @@ const userProfile = expressAsyncHandler(async (req, res, next) => {
 });
 
 const userOwnPosts = expressAsyncHandler(async (req, res) => {
-	const { user_id } = req.body;
+	let { user_id } = req.params;
 	let { page, limit } = req.query;
 	page = parseInt(page) || 1;
 	limit = parseInt(limit) || 10;
+	user_id = parseInt(user_id);
 	const offset = (page - 1) * limit;
 	const [posts] = await pool.query(
 		`SELECT
@@ -759,8 +774,9 @@ const userHandleNotificationStatus = expressAsyncHandler(async (req, res) => {
 
 const userGetMessagesInChat = expressAsyncHandler(async (req, res) => {
 	const { user_id } = req.user;
-	const { room_id } = req.body;
-	if (!room_id || typeof room_id !== 'string') {
+	const { room_id } = req.params;
+	console.log(room_id);
+	if (!room_id) {
 		res.status(400).json({
 			messages: 'room_id is missing or of wrong datatype',
 		});
@@ -1604,6 +1620,26 @@ const userRemoveBooking = expressAsyncHandler(async (req, res) => {
 	});
 });
 
+const userGenerateReceipt = expressAsyncHandler(async (req, res) => {
+	const doc = new PDFDocument();
+	const { user_id } = req.user;
+
+	res.setHeader('Content-Type', 'application/pdf');
+	res.setHeader('Content-Disposition', 'attachment; filename="example.pdf"');
+
+	doc.pipe(res);
+
+	doc.fontSize(25).text('Hello, this is your PDF!', 100, 100);
+	doc.fontSize(12).text(
+		'This is a simple PDF generated on the fly.',
+		100,
+		150
+	);
+	doc.text('You can add more content here.', 100, 200);
+	doc.text('This is a new line.', 100, 250);
+	doc.end();
+});
+
 export {
 	userAddReview,
 	userAddReviewImg,
@@ -1639,4 +1675,5 @@ export {
 	userAddFacilityReviewImg,
 	userDeleteMessage,
 	userDeleteChat,
+	userGenerateReceipt,
 };

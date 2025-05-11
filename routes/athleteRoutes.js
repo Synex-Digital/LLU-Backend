@@ -140,8 +140,8 @@ athleteRouter
 	.get(protect, athleteCheck, athleteAppointments);
 
 athleteRouter
-	.route('/session_details')
-	.post(
+	.route('/session/:session_id')
+	.get(
 		protect,
 		athleteCheck,
 		athleteCheckSession,
