@@ -34,6 +34,7 @@ import {
 	userGenerateReceipt,
 	userMarkNotificationAsRead,
 	userMarkAllNotificationsAsRead,
+	userPostInHelpCenter,
 } from '../controllers/usersControllers.js';
 import {
 	uploadMultiple,
@@ -123,5 +124,7 @@ userRouter
 userRouter
 	.route('/generate_receipt')
 	.get(protect, ensureBookPersonalities, userGenerateReceipt);
+
+userRouter.route('/help_center').post(protect, userPostInHelpCenter);
 
 export { userRouter };

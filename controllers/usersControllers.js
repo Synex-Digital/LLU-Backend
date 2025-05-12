@@ -1948,6 +1948,30 @@ const userGenerateReceipt = expressAsyncHandler(async (req, res) => {
 	doc.end();
 });
 
+const userPostInHelpCenter = expressAsyncHandler(async (req, res) => {
+	const { content } = req.body;
+	const { user_id } = req.user;
+	if (!content || typeof content !== 'string') {
+		res.status(400).json({
+			message: 'content is missing or of wrong datatype',
+		});
+		return;
+	}
+	const [{ affectedRows }] = await pool.query(
+		`INSERT INTO help_center (user_id, content) VALUES (?, ?)`,
+		[user_id, content]
+	);
+	if (affectedRows === 0) {
+		res.status(400).json({
+			message: 'Failed to post in help center',
+		});
+		return;
+	}
+	res.status(200).json({
+		message: 'Successfully posted in help center',
+	});
+});
+
 export {
 	userAddReview,
 	userAddReviewImg,
@@ -1986,4 +2010,5 @@ export {
 	userGenerateReceipt,
 	userMarkNotificationAsRead,
 	userMarkAllNotificationsAsRead,
+	userPostInHelpCenter,
 };
