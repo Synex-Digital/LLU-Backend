@@ -1178,6 +1178,32 @@ const userFollow = expressAsyncHandler(async (req, res) => {
 		});
 		return;
 	}
+	const [[availableUser]] = await pool.query(
+		`SELECT * FROM users WHERE user_id = ?`,
+		[user_id]
+	);
+	if (!availableUser) {
+		res.status(400).json({
+			message: 'User does not exist for provided user_id',
+		});
+		return;
+	}
+	if (parseInt(user_id) === user.user_id) {
+		res.status(403).json({
+			message: "You can't follow yourself",
+		});
+		return;
+	}
+	const [[availableFollow]] = await pool.query(
+		`SELECT * FROM follows WHERE follower_user_id = ? AND followed_user_id = ?`,
+		[user.user_id, user_id]
+	);
+	if (availableFollow) {
+		res.status(200).json({
+			message: 'Already following the user',
+		});
+		return;
+	}
 	const [{ affectedRows }] = await pool.query(
 		`INSERT INTO follows (follower_user_id, followed_user_id, notification_status) VALUES (?, ?, ?)`,
 		[user.user_id, user_id, 'all']
@@ -1208,10 +1234,11 @@ const userFollow = expressAsyncHandler(async (req, res) => {
 		});
 		return;
 	}
-	const [{ socket_id }] = await pool.query(
+	const [[{ socket_id }]] = await pool.query(
 		`SELECT socket_id FROM users WHERE user_id = ?`,
 		[user_id]
 	);
+	console.log(socket_id, user_id);
 	io.to(socket_id).emit('notification', {
 		...notification,
 		notification_id: insertId,
@@ -1284,7 +1311,7 @@ const userAddComment = expressAsyncHandler(async (req, res) => {
 	);
 	if (affectedRows === 0) throw new Error('Failed to add comment');
 	const notification = {
-		title: `New comment from ${first_name} ${last_name}`,
+		title: `New comment`,
 		content: content,
 		time: new Date().toISOString().slice(0, 19).replace('T', ' '),
 		read_status: 'no',
@@ -1375,6 +1402,7 @@ const userGetNotifications = expressAsyncHandler(async (req, res) => {
 	const offset = (page - 1) * limit;
 	const [notifications] = await pool.query(
 		`SELECT
+			notification_id,
 			title,
 			content,
 			time,
@@ -1389,25 +1417,30 @@ const userGetNotifications = expressAsyncHandler(async (req, res) => {
 		LIMIT ? OFFSET ?`,
 		[user_id, limit, offset]
 	);
+	const [[{ new_notification }]] = await pool.query(
+		`SELECT
+			COUNT(*) AS new_notification
+		FROM
+			notifications
+		WHERE
+			user_id = ?
+		AND
+			read_status = 'no'`,
+		[user_id]
+	);
 	res.status(200).json({
 		page,
 		limit,
-		data: notifications,
+		data: {
+			new_notification,
+			notifications,
+		},
 	});
 });
 
 const userMarkNotificationAsRead = expressAsyncHandler(async (req, res) => {
-	const { notification_id, time } = req.body;
+	const { notification_id } = req.body;
 	const { user_id } = req.user;
-	let checkTime;
-	try {
-		checkTime = new Date(time);
-	} catch (error) {
-		res.status(400).json({
-			message: 'time is of wrong format',
-		});
-		return;
-	}
 	if (!notification_id || typeof notification_id !== 'number') {
 		res.status(400).json({
 			message: 'notification_id is missing or of wrong datatype',
@@ -1422,10 +1455,8 @@ const userMarkNotificationAsRead = expressAsyncHandler(async (req, res) => {
 		WHERE
 			notification_id = ?
 		AND
-			user_id = ?
-		AND
-			DATE(time) = ?`,
-		[notification_id, user_id, time]
+			user_id = ?`,
+		[notification_id, user_id]
 	);
 	if (affectedRows === 0) {
 		res.status(400).json({
@@ -1435,6 +1466,46 @@ const userMarkNotificationAsRead = expressAsyncHandler(async (req, res) => {
 	}
 	res.status(200).json({
 		message: 'Successfully marked notification as read',
+	});
+});
+
+const userMarkAllNotificationsAsRead = expressAsyncHandler(async (req, res) => {
+	const { time } = req.body;
+	const { user_id } = req.user;
+	let checkTime;
+	try {
+		checkTime = new Date(time);
+	} catch (error) {
+		res.status(400).json({
+			message: 'time is of wrong format',
+		});
+		return;
+	}
+	if (!time) {
+		res.status(400).json({
+			message: 'time is missing',
+		});
+		return;
+	}
+	const [{ affectedRows }] = await pool.query(
+		`UPDATE 
+			notifications
+		SET
+			read_status = 'yes'
+		WHERE
+			user_id = ?
+		AND
+			DATE(time) = ?`,
+		[user_id, time]
+	);
+	if (affectedRows === 0) {
+		res.status(400).json({
+			message: 'Failed to mark all notifications as read',
+		});
+		return;
+	}
+	res.status(200).json({
+		message: 'Successfully marked all notifications as read',
 	});
 });
 
@@ -1892,4 +1963,5 @@ export {
 	userDeleteChat,
 	userGenerateReceipt,
 	userMarkNotificationAsRead,
+	userMarkAllNotificationsAsRead,
 };

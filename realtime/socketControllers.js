@@ -60,6 +60,9 @@ const connectUser = async (data, socket) => {
 				message: 'User is active',
 			});
 		});
+		socket.emit('status', {
+			message: 'User connected successfully',
+		});
 	} catch (error) {
 		socket.emit('validation', {
 			message: error.message,
