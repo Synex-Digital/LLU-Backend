@@ -5,6 +5,7 @@ import { generateRandomString } from '../utilities/generateRandomString.js';
 import { validateDate } from '../utilities/DateValidation.js';
 import generateBookingTime from '../utilities/generateBookingTime.js';
 import { io } from '../index.js';
+import QRCode from 'qrcode';
 
 const userAddReview = expressAsyncHandler(async (req, res) => {
 	const { trainer_id } = req.body;
@@ -347,6 +348,7 @@ const userGetComments = expressAsyncHandler(async (req, res, next) => {
 	limit = parseInt(limit) || 10;
 	const offset = (page - 1) * limit;
 	let { post_id } = req.params;
+	const { user_id } = req.user;
 	if (!post_id) {
 		res.status(400).json({
 			message: 'Post id is missing',
@@ -365,19 +367,35 @@ const userGetComments = expressAsyncHandler(async (req, res, next) => {
 			c.comment_id,
 			c.time,
 			c.content,
-			c.no_of_likes,
 			u.first_name,
 			u.last_name,
 			u.profile_picture,
-			u.img
+			u.img,
+			COUNT(DISTINCT cl.comment_like_id) AS no_of_likes,
+			MAX(CASE 
+				WHEN cl.user_id = ? THEN 1
+				ELSE 0
+			END) AS has_liked
 		FROM
 			comments c
+		LEFT JOIN
+			comment_likes cl ON c.comment_id = cl.comment_id
 		LEFT JOIN
 			users u ON u.user_id = c.user_id
 		WHERE
 			c.post_id = ?
+		GROUP BY
+			c.comment_id,
+			c.time,
+			c.content,
+			u.first_name,
+			u.last_name,
+			u.profile_picture,
+			u.img
+		ORDER BY
+			c.time DESC
 		LIMIT ? OFFSET ?`,
-		[post_id, limit, offset]
+		[user_id, post_id, limit, offset]
 	);
 	req.comments = comments;
 	next();
@@ -1357,9 +1375,9 @@ const userAddComment = expressAsyncHandler(async (req, res) => {
 	});
 });
 
-//TODO have to handle infinite no of request to get many likes
 const userLikeComment = expressAsyncHandler(async (req, res) => {
 	const { comment_id } = req.body;
+	const { user_id } = req.user;
 	if (!comment_id || typeof comment_id !== 'number') {
 		res.status(400).json({
 			message: 'comment_id is missing or of wrong datatype',
@@ -1367,8 +1385,8 @@ const userLikeComment = expressAsyncHandler(async (req, res) => {
 		return;
 	}
 	const [{ affectedRows }] = await pool.query(
-		`UPDATE comments SET no_of_likes = no_of_likes + 1 WHERE comment_id = ?`,
-		[comment_id]
+		`INSERT INTO comment_likes (user_id, comment_id) VALUES (?, ?)`,
+		[user_id, comment_id]
 	);
 	if (affectedRows === 0) throw new Error('Failed to like comment');
 	res.status(200).json({
@@ -1378,6 +1396,7 @@ const userLikeComment = expressAsyncHandler(async (req, res) => {
 
 const userRemoveLikeComment = expressAsyncHandler(async (req, res) => {
 	const { comment_id } = req.body;
+	const { user_id } = req.user;
 	if (!comment_id || typeof comment_id !== 'number') {
 		res.status(400).json({
 			message: 'comment_id is missing or of wrong datatype',
@@ -1385,8 +1404,8 @@ const userRemoveLikeComment = expressAsyncHandler(async (req, res) => {
 		return;
 	}
 	const [{ affectedRows }] = await pool.query(
-		`UPDATE comments SET no_of_likes = no_of_likes - 1 WHERE comment_id = ?`,
-		[comment_id]
+		`DELETE FROM comment_likes WHERE comment_id = ? AND user_id = ?`,
+		[comment_id, user_id]
 	);
 	if (affectedRows === 0) throw new Error('Failed to remove like comment');
 	res.status(200).json({
@@ -1909,20 +1928,23 @@ const userRemoveBooking = expressAsyncHandler(async (req, res) => {
 const userGenerateReceipt = expressAsyncHandler(async (req, res) => {
 	const doc = new PDFDocument();
 	const { user_id } = req.user;
-
+	const qrData = `https://www.google.com/search?q=Shihab+Sarar`;
+	const qrCodeBuffer = await QRCode.toBuffer(qrData);
 	res.setHeader('Content-Type', 'application/pdf');
 	res.setHeader('Content-Disposition', 'attachment; filename="example.pdf"');
 
 	doc.pipe(res);
 
-	doc.fontSize(25).text('Hello, this is your PDF!', 100, 100);
+	doc.fontSize(25).text('Receipt for Your Purchase', 100, 100);
 	doc.fontSize(12).text(
-		'This is a simple PDF generated on the fly.',
+		'This is a simple receipt PDF generated on the fly.',
 		100,
 		150
 	);
-	doc.text('You can add more content here.', 100, 200);
-	doc.text('This is a new line.', 100, 250);
+	doc.text('Your purchase has been successfully processed.', 100, 200);
+
+	doc.image(qrCodeBuffer, 100, 250, { width: 100 });
+
 	doc.end();
 });
 
