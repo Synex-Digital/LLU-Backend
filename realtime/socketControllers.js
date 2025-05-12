@@ -420,6 +420,22 @@ const sendMessage = async (data, socket) => {
 				chat_id,
 				message_content: content,
 			});
+
+			const startDate = new Date();
+			const endTimeFormatted = startDate.toISOString().split('T')[0];
+			startDate.setDate(startDate.getDate() - 15);
+			const startTimeFormatted = startDate.toISOString().split('T')[0];
+			const notification = {
+				title: `New message from ${user.first_name} ${user.last_name}`,
+				content: content,
+				time: new Date().toISOString().slice(0, 19).replace('T', ' '),
+				read_status: 'no',
+				redirect: `/api/user/messages/${room_id}?start_time=${startTimeFormatted}&end_time=${endTimeFormatted}`,
+			};
+			socket.in(socket_id).emit('notification', {
+				...notification,
+				notification_id: null,
+			});
 			return;
 		}
 		console.log(user.user_id, room_id, user_id);
@@ -551,6 +567,21 @@ const uploadImage = async (data, socket) => {
 				room_id,
 				chat_id,
 				message_content: imageUrl,
+			});
+			const startDate = new Date();
+			const endTimeFormatted = startDate.toISOString().split('T')[0];
+			startDate.setDate(startDate.getDate() - 15);
+			const startTimeFormatted = startDate.toISOString().split('T')[0];
+			const notification = {
+				title: `New message from ${user.first_name} ${user.last_name}`,
+				content: 'Sent an image',
+				time: new Date().toISOString().slice(0, 19).replace('T', ' '),
+				read_status: 'no',
+				redirect: `/api/user/messages/${room_id}?start_time=${startTimeFormatted}&end_time=${endTimeFormatted}`,
+			};
+			socket.in(socket_id).emit('notification', {
+				...notification,
+				notification_id: null,
 			});
 			return;
 		}

@@ -41,6 +41,11 @@ import {
 	facilitySessionTrainer,
 	facilitySuggestions,
 } from '../controllers/facilitatorControllers.js';
+import {
+	userAddReview,
+	userAddReviewImg,
+} from '../controllers/usersControllers.js';
+import { uploadFile, uploadToS3 } from '../middleware/uploadMiddleware.js';
 
 const parentRouter = Router();
 
@@ -141,8 +146,8 @@ parentRouter
 	);
 
 parentRouter
-	.route('/facility_details')
-	.post(
+	.route('/facility/:facility_id')
+	.get(
 		protect,
 		parentCheck,
 		athleteFacilityDetails,
@@ -150,5 +155,13 @@ parentRouter
 		athleteFacilityImages,
 		athleteFacilityReviews
 	);
+
+parentRouter
+	.route('/add_review_trainer')
+	.post(protect, parentCheck, userAddReview);
+
+parentRouter
+	.route('/review_trainer_add_img')
+	.post(protect, parentCheck, uploadFile, uploadToS3, userAddReviewImg);
 
 export { parentRouter };

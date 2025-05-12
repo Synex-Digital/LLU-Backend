@@ -83,15 +83,18 @@ facilitatorRouter
 	);
 
 facilitatorRouter
-	.route('/facility')
-	.post(
+	.route('/facility/:facility_id')
+	.get(
 		protect,
 		facilitatorCheck,
 		facilityBasicDetails,
 		facilityAvailableHours,
 		facilityGallery,
 		facilityReviews
-	)
+	);
+
+facilitatorRouter
+	.route('/facility')
 	.patch(protect, facilitatorCheck, facilityEdit);
 
 facilitatorRouter

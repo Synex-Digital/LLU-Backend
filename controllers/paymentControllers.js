@@ -428,34 +428,38 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 		}
 		const notification = {
 			title: 'Booking Confirmation',
-			message: `Payment successful and session has been booked for ${time} from ${start_time} to ${end_time}`,
-			time: new Date(),
-			read: 'no',
+			content: `Payment successful and session has been booked for ${time} from ${start_time} to ${end_time}`,
+			time: new Date().toISOString().slice(0, 19).replace('T', ' '),
+			read_status: 'no',
 			redirect: `/api/${type}/session/${insertId}`,
 		};
 
-		const [{ affectedRows: notificationAffectedRows }] =
-			await connection.query(
-				`INSERT INTO notifications (user_id, title, content, time, read_status, redirect) VALUES (?, ?, ?, ?, ?, ?)`,
-				[
-					description.user_id,
-					notification.title,
-					notification.message,
-					notification.time
-						.toISOString()
-						.slice(0, 19)
-						.replace('T', ' '),
-					notification.read,
-					notification.redirect,
-				]
-			);
+		const [
+			{
+				insertId: notificationInsertId,
+				affectedRows: notificationAffectedRows,
+			},
+		] = await connection.query(
+			`INSERT INTO notifications (user_id, title, content, time, read_status, redirect) VALUES (?, ?, ?, ?, ?, ?)`,
+			[
+				description.user_id,
+				notification.title,
+				notification.content,
+				notification.time,
+				notification.read_status,
+				notification.redirect,
+			]
+		);
 
 		if (notificationAffectedRows === 0) {
 			await connection.rollback();
 			connection.release();
 			return 400;
 		}
-		io.to(socket_id).emit('notification', notification);
+		io.to(socket_id).emit('notification', {
+			...notification,
+			notification_id: notificationInsertId,
+		});
 		await connection.commit();
 		connection.release();
 		return 200;

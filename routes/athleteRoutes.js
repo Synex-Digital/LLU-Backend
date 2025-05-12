@@ -72,8 +72,6 @@ athleteRouter
 	.route('/search_by_trainer_name')
 	.post(protect, athleteCheck, athleteSearchTrainerByName);
 
-athleteRouter.route('');
-
 athleteRouter
 	.route('/favorites')
 	.get(
@@ -125,8 +123,8 @@ athleteRouter
 	.post(protect, athleteCheck, uploadFile, uploadToS3, userAddReviewImg);
 
 athleteRouter
-	.route('/facility_details')
-	.post(
+	.route('/facility/:facility_id')
+	.get(
 		protect,
 		athleteCheck,
 		athleteFacilityDetails,

@@ -32,6 +32,7 @@ import {
 	userDeleteMessage,
 	userDeleteChat,
 	userGenerateReceipt,
+	userMarkNotificationAsRead,
 } from '../controllers/usersControllers.js';
 import {
 	uploadMultiple,
@@ -91,6 +92,8 @@ userRouter.route('/comment').post(protect, userAddComment);
 userRouter.route('/like_comment').post(protect, userLikeComment);
 
 userRouter.route('/remove_like_comment').delete(protect, userRemoveLikeComment);
+
+userRouter.route('/mark_as_read').post(protect, userMarkNotificationAsRead);
 
 userRouter.route('/notifications').get(protect, userGetNotifications);
 

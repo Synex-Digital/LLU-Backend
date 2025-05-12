@@ -1,7 +1,7 @@
 import expressAsyncHandler from 'express-async-handler';
 import { pool } from '../config/db.js';
 import { validateTimeStamp } from '../utilities/DateValidation.js';
-import { start } from 'repl';
+import { io } from '../index.js';
 
 const facilitatorCheck = expressAsyncHandler(async (req, res, next) => {
 	const { type, user_id } = req.user;
@@ -191,7 +191,7 @@ const facilitatorAddAmenities = expressAsyncHandler(async (req, res) => {
 });
 
 const facilityReview = expressAsyncHandler(async (req, res) => {
-	const { user_id } = req.user;
+	const { user_id, type } = req.user;
 	const { facility_id } = req.body;
 	if (!facility_id) {
 		res.status(400).json({
@@ -220,12 +220,69 @@ const facilityReview = expressAsyncHandler(async (req, res) => {
 		});
 		return;
 	}
-	const [{ affectedRows }] = await pool.query(
+	const connection = await pool.getConnection();
+	await connection.beginTransaction();
+	const [{ affectedRows }] = await connection.query(
 		`INSERT INTO review_facility (user_id, rating, facility_id, content) VALUES (?, ?, ?, ?);`,
 		[user_id, rating, facility_id, content]
 	);
-	if (affectedRows === 0)
-		throw new Error('Failed to insert review for facility');
+	if (affectedRows === 0) {
+		await connection.rollback();
+		connection.release();
+		res.status(400).json({
+			message: 'Failed to post review',
+		});
+		return;
+	}
+	const [[{ socket_id }]] = await connection.query(
+		`SELECT 
+			socket_id
+		FROM
+			facilities
+		LEFT JOIN
+			facilitators f ON f.facilitator_id = facilities.facilitator_id
+		LEFT JOIN
+			users u ON u.user_id = f.user_id
+		WHERE
+			facility_id = ?`,
+		[availableFacility.facility_id]
+	);
+	const notification = {
+		title: 'New Review',
+		content: `Your facility have a new review of ${rating} star: ${content}`,
+		time: new Date().toISOString().slice(0, 19).replace('T', ' '),
+		read_status: 'no',
+		redirect: `/api/${type}/facility/${facility_id}`,
+	};
+
+	const [{ insertId, affectedRows: notificationAffectedRows }] =
+		await connection.query(
+			`INSERT INTO notifications (user_id, title, content, time, read_status, redirect) VALUES (?, ?, ?, ?, ?, ?)`,
+			[
+				user_id,
+				notification.title,
+				notification.content,
+				notification.time,
+				notification.read_status,
+				notification.redirect,
+			]
+		);
+	if (notificationAffectedRows === 0) {
+		await connection.rollback();
+		connection.release();
+		res.status(400).json({
+			message: 'Failed to send notification',
+		});
+		return;
+	}
+	io.to(socket_id).emit('notification', {
+		...notification,
+		notification_id: insertId,
+	});
+
+	await connection.commit();
+	connection.release();
+
 	res.status(201).json({
 		message: 'Successfully inserted review for facility',
 	});
@@ -641,7 +698,8 @@ const facilitatorAllReview = expressAsyncHandler(async (req, res) => {
 });
 
 const facilityAvailableHours = expressAsyncHandler(async (req, res, next) => {
-	const { facility_id } = req.body;
+	let { facility_id } = req.params;
+	facility_id = parseInt(facility_id);
 	const [availableHours] = await pool.query(
 		`SELECT
 			fah.week_day,
@@ -660,10 +718,17 @@ const facilityAvailableHours = expressAsyncHandler(async (req, res, next) => {
 
 //TODO have to verify all the params for SQL injection
 const facilityBasicDetails = expressAsyncHandler(async (req, res, next) => {
-	const { facility_id } = req.body;
+	let { facility_id } = req.params;
 	if (!facility_id) {
 		res.status(400).json({
-			message: 'facility id is missing in the url',
+			message: 'facility id is missing',
+		});
+		return;
+	}
+	facility_id = parseInt(facility_id);
+	if (isNaN(facility_id)) {
+		res.status(400).json({
+			message: 'facility id is of wrong datatype',
 		});
 		return;
 	}
@@ -699,6 +764,7 @@ const facilityBasicDetails = expressAsyncHandler(async (req, res, next) => {
 		});
 		return;
 	}
+	console.log(facilityDetails);
 	req.facilityDetails = facilityDetails;
 	next();
 });
@@ -709,7 +775,8 @@ const facilityGallery = expressAsyncHandler(async (req, res, next) => {
 	page = parseInt(page) || 1;
 	limit = parseInt(limit) || 5;
 	const offset = (page - 1) * limit;
-	const { facility_id } = req.body;
+	let { facility_id } = req.params;
+	facility_id = parseInt(facility_id);
 	const [gallery] = await pool.query(
 		`SELECT
 			fi.facility_img_id,
@@ -730,7 +797,9 @@ const facilityReviews = expressAsyncHandler(async (req, res) => {
 	page = parseInt(page) || 1;
 	limit = parseInt(limit) || 10;
 	const offset = (page - 1) * limit;
-	const { facility_id } = req.body;
+	let { facility_id } = req.params;
+	facility_id = parseInt(facility_id);
+	console.log(limit, offset);
 	const [reviews] = await pool.query(
 		`SELECT
 			u.first_name,
@@ -750,6 +819,16 @@ const facilityReviews = expressAsyncHandler(async (req, res) => {
 			review_facility_img rfi ON rf.review_facility_id = rfi.review_facility_id
 		WHERE
 			facility_id = ?
+		GROUP BY
+			u.first_name,
+			u.last_name,
+			u.profile_picture,
+			u.img,
+			rf.review_facility_id,
+			rf.rating,
+			rf.time,
+			rf.content
+		LIMIT ? OFFSET ?
 		`,
 		[facility_id, limit, offset]
 	);
@@ -1193,10 +1272,17 @@ const facilitatorDeleteFacilityImage = expressAsyncHandler(
 
 const athleteFacilityDetails = expressAsyncHandler(async (req, res, next) => {
 	const { user_id } = req.user;
-	const { facility_id } = req.body;
-	if (!facility_id || typeof facility_id !== 'number') {
+	let { facility_id } = req.params;
+	if (!facility_id) {
 		res.status(400).json({
-			message: 'facility_id is missing or of wrong data type',
+			message: 'facility_id is missing',
+		});
+		return;
+	}
+	facility_id = parseInt(facility_id);
+	if (isNaN(facility_id)) {
+		res.status(400).json({
+			message: 'facility_id is of wrong data type',
 		});
 		return;
 	}
@@ -1265,7 +1351,8 @@ const athleteFacilityDetails = expressAsyncHandler(async (req, res, next) => {
 });
 
 const athleteFacilityEmployees = expressAsyncHandler(async (req, res, next) => {
-	const { facility_id } = req.body;
+	let { facility_id } = req.params;
+	facility_id = parseInt(facility_id);
 	const [employees] = await pool.query(
 		`SELECT
 			u.first_name,
@@ -1298,7 +1385,8 @@ const athleteFacilityEmployees = expressAsyncHandler(async (req, res, next) => {
 });
 
 const athleteFacilityImages = expressAsyncHandler(async (req, res, next) => {
-	const { facility_id } = req.body;
+	let { facility_id } = req.params;
+	facility_id = parseInt(facility_id);
 	const [facilityImages] = await pool.query(
 		`SELECT
 			fi.img
@@ -1313,10 +1401,11 @@ const athleteFacilityImages = expressAsyncHandler(async (req, res, next) => {
 });
 
 const athleteFacilityReviews = expressAsyncHandler(async (req, res) => {
-	const { facility_id } = req.body;
+	let { facility_id } = req.params;
 	let { page, limit } = req.query;
 	page = parseInt(page) || 1;
 	limit = parseInt(limit) || 10;
+	facility_id = parseInt(facility_id);
 	const offset = (page - 1) * limit;
 	const [[{ no_of_reviews }]] = await pool.query(
 		`SELECT

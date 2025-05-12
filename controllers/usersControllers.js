@@ -4,6 +4,7 @@ import { pool } from '../config/db.js';
 import { generateRandomString } from '../utilities/generateRandomString.js';
 import { validateDate } from '../utilities/DateValidation.js';
 import generateBookingTime from '../utilities/generateBookingTime.js';
+import { io } from '../index.js';
 
 const userAddReview = expressAsyncHandler(async (req, res) => {
 	const { trainer_id } = req.body;
@@ -981,18 +982,70 @@ const userCreateChat = expressAsyncHandler(async (req, res) => {
 		});
 		return;
 	}
+	const connection = await pool.getConnection();
+	await connection.beginTransaction();
 	const roomId = generateRandomString(16);
-	const [{ affectedRows }] = await pool.query(
+	const [{ affectedRows }] = await connection.query(
 		`INSERT INTO chats (user_id, room_id, friend_user_id) VALUES (?, ?, ?)`,
 		[user.user_id, roomId, user_id]
 	);
-	if (affectedRows === 0) throw new Error('Failed to create chat');
-	const [insertStatus] = await pool.query(
+	if (affectedRows === 0) {
+		await connection.rollback();
+		connection.release();
+		res.status(400).json({
+			message: 'Failed to create chat',
+		});
+		return;
+	}
+	const [insertStatus] = await connection.query(
 		`INSERT INTO chats (user_id, room_id, friend_user_id) VALUES (?, ?, ?)`,
 		[user_id, roomId, user.user_id]
 	);
-	if (insertStatus.affectedRows === 0)
-		throw new Error('Failed to create chat');
+	if (insertStatus.affectedRows === 0) {
+		await connection.rollback();
+		connection.release();
+		res.status(400).json({
+			message: 'Failed to create chat',
+		});
+		return;
+	}
+	const startDate = new Date();
+	const endTimeFormatted = startDate.toISOString().split('T')[0];
+	startDate.setDate(startDate.getDate() - 15);
+	const startTimeFormatted = startDate.toISOString().split('T')[0];
+	const notification = {
+		title: 'New message request',
+		content: `${user.first_name} ${user.last_name} has sent you a message request`,
+		time: new Date().toISOString().slice(0, 19).replace('T', ' '),
+		read_status: 'no',
+		redirect: `/api/user/messages/${roomId}?start_time=${startTimeFormatted}&end_time=${endTimeFormatted}`,
+	};
+	const [{ insertId, affectedRows: notificationAffectedRows }] =
+		await connection.query(
+			`INSERT INTO notifications (user_id, title, content, time, read_status, redirect) VALUES (?, ?, ?, ?, ?, ?)`,
+			[
+				user_id,
+				notification.title,
+				notification.content,
+				notification.time,
+				notification.read_status,
+				notification.redirect,
+			]
+		);
+	if (notificationAffectedRows === 0) {
+		await connection.rollback();
+		connection.release();
+		res.status(400).json({
+			message: 'Failed to create notification',
+		});
+		return;
+	}
+	await connection.commit();
+	connection.release();
+	io.to(user.socket_id).emit('notification', {
+		...notification,
+		notification_id: insertId,
+	});
 	res.status(200).json({
 		message: 'Chat created successfully',
 	});
@@ -1011,7 +1064,7 @@ const userDeleteAccount = expressAsyncHandler(async (req, res) => {
 });
 
 const userLikePost = expressAsyncHandler(async (req, res) => {
-	const { user_id } = req.user;
+	const { user_id, first_name, last_name } = req.user;
 	const { post_id } = req.body;
 	if (!post_id || typeof post_id !== 'number') {
 		res.status(400).json({
@@ -1040,6 +1093,47 @@ const userLikePost = expressAsyncHandler(async (req, res) => {
 		[user_id, post_id]
 	);
 	if (affectedRows === 0) throw new Error('Failed to add like');
+	const [[{ user_id: notify_user_id, socket_id }]] = await pool.query(
+		`SELECT
+			u.user_id,
+			u.socket_id
+		FROM
+			posts p
+		LEFT JOIN
+			users u ON p.user_id = u.user_id
+		WHERE
+			p.post_id = ?`,
+		[post_id]
+	);
+	const notification = {
+		title: `New like`,
+		content: `${first_name} ${last_name} liked your post`,
+		time: new Date().toISOString().slice(0, 19).replace('T', ' '),
+		read_status: 'no',
+		redirect: `/api/user/post/${post_id}?page=1&limit=10`,
+	};
+	const [{ insertId, affectedRows: notificationAffectedRows }] =
+		await pool.query(
+			`INSERT INTO notifications (user_id, title, content, time, read_status, redirect) VALUES (?, ?, ?, ?, ?, ?)`,
+			[
+				notify_user_id,
+				notification.title,
+				notification.content,
+				notification.time,
+				notification.read_status,
+				notification.redirect,
+			]
+		);
+	if (notificationAffectedRows === 0) {
+		res.status(400).json({
+			message: 'Failed to create notification',
+		});
+		return;
+	}
+	io.to(socket_id).emit('notification', {
+		...notification,
+		notification_id: insertId,
+	});
 	res.status(200).json({
 		message: 'Successfully added like',
 	});
@@ -1089,6 +1183,39 @@ const userFollow = expressAsyncHandler(async (req, res) => {
 		[user.user_id, user_id, 'all']
 	);
 	if (affectedRows === 0) throw new Error('Failed to follow user');
+	const notification = {
+		title: `New follower`,
+		content: `${user.first_name} ${user.last_name} has followed you`,
+		time: new Date().toISOString().slice(0, 19).replace('T', ' '),
+		read_status: 'no',
+		redirect: `/api/user/profile/${user.user_id}?page=1&limit=5`,
+	};
+	const [{ insertId, affectedRows: notificationAffectedRows }] =
+		await pool.query(
+			`INSERT INTO notifications (user_id, title, content, time, read_status, redirect) VALUES (?, ?, ?, ?, ?, ?)`,
+			[
+				user_id,
+				notification.title,
+				notification.content,
+				notification.time,
+				notification.read_status,
+				notification.redirect,
+			]
+		);
+	if (notificationAffectedRows === 0) {
+		res.status(400).json({
+			message: 'Failed to create notification',
+		});
+		return;
+	}
+	const [{ socket_id }] = await pool.query(
+		`SELECT socket_id FROM users WHERE user_id = ?`,
+		[user_id]
+	);
+	io.to(socket_id).emit('notification', {
+		...notification,
+		notification_id: insertId,
+	});
 	res.status(200).json({
 		message: 'Successfully followed user',
 	});
@@ -1131,7 +1258,7 @@ const userUnfollow = expressAsyncHandler(async (req, res) => {
 
 const userAddComment = expressAsyncHandler(async (req, res) => {
 	const { post_id } = req.body;
-	const { user_id } = req.user;
+	const { user_id, first_name, last_name } = req.user;
 	const { content } = req.body;
 	if (!post_id || typeof post_id !== 'number') {
 		res.status(400).json({
@@ -1156,6 +1283,48 @@ const userAddComment = expressAsyncHandler(async (req, res) => {
 		[user_id, post_id, content]
 	);
 	if (affectedRows === 0) throw new Error('Failed to add comment');
+	const notification = {
+		title: `New comment from ${first_name} ${last_name}`,
+		content: content,
+		time: new Date().toISOString().slice(0, 19).replace('T', ' '),
+		read_status: 'no',
+		redirect: `/api/user/post/${post_id}?page=1&limit=10`,
+	};
+	const [[{ user_id: notify_user_id, socket_id }]] = await pool.query(
+		`SELECT
+			u.user_id,
+			u.socket_id
+		FROM
+			posts p
+		LEFT JOIN
+			users u ON p.user_id = u.user_id
+		WHERE
+			p.post_id = ?`,
+		[post_id]
+	);
+	const [{ insertId, affectedRows: notificationAffectedRows }] =
+		await pool.query(
+			`INSERT INTO notifications (user_id, title, content, time, read_status, redirect) VALUES (?, ?, ?, ?, ?, ?)`,
+			[
+				notify_user_id,
+				notification.title,
+				notification.content,
+				notification.time,
+				notification.read_status,
+				notification.redirect,
+			]
+		);
+	if (notificationAffectedRows === 0) {
+		res.status(400).json({
+			message: 'Failed to create notification',
+		});
+		return;
+	}
+	io.to(socket_id).emit('notification', {
+		...notification,
+		notification_id: insertId,
+	});
+
 	res.status(200).json({
 		message: 'Successfully added comment',
 	});
@@ -1209,10 +1378,14 @@ const userGetNotifications = expressAsyncHandler(async (req, res) => {
 			title,
 			content,
 			time,
-			read_status
+			read_status,
+			redirect
 		FROM
 			notifications
-		WHERE user_id = ?
+		WHERE
+			user_id = ?
+		ORDER BY
+			time DESC
 		LIMIT ? OFFSET ?`,
 		[user_id, limit, offset]
 	);
@@ -1220,6 +1393,48 @@ const userGetNotifications = expressAsyncHandler(async (req, res) => {
 		page,
 		limit,
 		data: notifications,
+	});
+});
+
+const userMarkNotificationAsRead = expressAsyncHandler(async (req, res) => {
+	const { notification_id, time } = req.body;
+	const { user_id } = req.user;
+	let checkTime;
+	try {
+		checkTime = new Date(time);
+	} catch (error) {
+		res.status(400).json({
+			message: 'time is of wrong format',
+		});
+		return;
+	}
+	if (!notification_id || typeof notification_id !== 'number') {
+		res.status(400).json({
+			message: 'notification_id is missing or of wrong datatype',
+		});
+		return;
+	}
+	const [{ affectedRows }] = await pool.query(
+		`UPDATE 
+			notifications
+		SET
+			read_status = 'yes'
+		WHERE
+			notification_id = ?
+		AND
+			user_id = ?
+		AND
+			DATE(time) = ?`,
+		[notification_id, user_id, time]
+	);
+	if (affectedRows === 0) {
+		res.status(400).json({
+			message: 'Failed to mark notification as read',
+		});
+		return;
+	}
+	res.status(200).json({
+		message: 'Successfully marked notification as read',
 	});
 });
 
@@ -1676,4 +1891,5 @@ export {
 	userDeleteMessage,
 	userDeleteChat,
 	userGenerateReceipt,
+	userMarkNotificationAsRead,
 };
